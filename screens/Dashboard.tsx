@@ -18,7 +18,7 @@ export default function Dashboard() {
   const savingsGoals = goals.slice(0, 3);
   const totalSavings = goals.reduce((sum, goal) => sum + goal.currentAmount, 0);
   const autoSaveGoal = goals.find((goal) => goal.autoSaveAmount && goal.autoSaveFrequency);
-  const greetingName = currentUser?.phoneNumber ?? 'Chuma User';
+  const greetingName = currentUser?.fullName ?? currentUser?.phoneNumber ?? 'Chuma User';
 
   return (
     <View style={styles.container}>

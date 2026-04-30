@@ -29,6 +29,9 @@ export type ExpenseItem = {
 export type SessionUser = {
   phoneNumber: string;
   mode: SessionMode;
+  fullName?: string;
+  email?: string;
+  provider?: 'mtn' | 'airtel' | 'zamtel';
 };
 
 type AddGoalInput = Omit<SavingsGoal, 'id' | 'currentAmount'>;
@@ -40,7 +43,7 @@ type AppDataContextValue = {
   currentUser: SessionUser | null;
   addGoal: (goal: AddGoalInput) => void;
   addExpense: (expense: AddExpenseInput) => void;
-  signInDemo: (phoneNumber: string) => void;
+  signInDemo: (user: SessionUser) => void;
   signOut: () => void;
 };
 
@@ -148,11 +151,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           ...current,
         ]);
       },
-      signInDemo: (phoneNumber) => {
-        setCurrentUser({
-          phoneNumber,
-          mode: 'demo',
-        });
+      signInDemo: (user) => {
+        setCurrentUser(user);
       },
       signOut: () => {
         setCurrentUser(null);

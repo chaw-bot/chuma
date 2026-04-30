@@ -1,6 +1,11 @@
 export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
+  CompleteProfile:
+    | {
+        phoneNumber: string;
+      }
+    | undefined;
   Dashboard: undefined;
   CreateGoal: undefined;
   AutomatedSavings:

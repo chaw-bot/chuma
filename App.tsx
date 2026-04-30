@@ -9,6 +9,7 @@ import { RootStackParamList } from './types/navigation';
 
 import Onboarding from './screens/Onboarding';
 import Login from './screens/Login';
+import CompleteProfile from './screens/CompleteProfile';
 import Dashboard from './screens/Dashboard';
 import CreateGoal from './screens/CreateGoal';
 import AutomatedSavings from './screens/AutomatedSaving';
@@ -49,6 +50,7 @@ export default function App() {
           >
             <Stack.Screen name="Onboarding" component={Onboarding} />
             <Stack.Screen name="Login" component={Login} />
+            <Stack.Screen name="CompleteProfile" component={CompleteProfile} />
             <Stack.Screen name="Dashboard" component={Dashboard} />
             <Stack.Screen name="CreateGoal" component={CreateGoal} />
             <Stack.Screen name="AutomatedSavings" component={AutomatedSavings} />

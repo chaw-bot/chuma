@@ -46,7 +46,7 @@ export default function Profile() {
   };
 
   const profileCard = {
-    name: 'Chuma User',
+    name: currentUser?.fullName ?? 'Chuma User',
     phone: currentUser?.phoneNumber ?? 'No phone linked',
     memberSince: 'Jan 2026',
     activeGoals: `${goals.length} ${goals.length === 1 ? 'Goal' : 'Goals'}`,
