@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Coins, Target, TrendingUp, ArrowRight } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
+import { Coins, Target, Smartphone } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
 import { colors, radii, shadows } from '../theme/colors';
 
@@ -12,72 +11,101 @@ type OnboardingNavigationProp = NativeStackNavigationProp<
   'Onboarding'
 >;
 
+const onboardingSlides = [
+  {
+    id: 'intro',
+    title: 'Chuma',
+    accent: 'Save small. Grow steady.',
+    description: 'Start your journey to financial freedom with automated micro-savings',
+    buttonLabel: 'Next',
+    icon: Coins,
+    iconSize: 58,
+    titleWidth: 220,
+  },
+  {
+    id: 'goals',
+    title: 'Set your\nsavings goal',
+    accent: 'Dream big, save smart',
+    description: 'Create personalized savings goals and track your progress every step of the way',
+    buttonLabel: 'Next',
+    icon: Target,
+    iconSize: 56,
+    titleWidth: 260,
+  },
+  {
+    id: 'deductions',
+    title: 'Automated\ndeductions',
+    accent: 'Save without thinking',
+    description: 'Automatic deductions from MTN MoMo, Airtel Money, or Zamtel Kwacha',
+    buttonLabel: 'Get Started',
+    icon: Smartphone,
+    iconSize: 56,
+    titleWidth: 280,
+  },
+] as const;
+
 export default function Onboarding() {
   const navigation = useNavigation<OnboardingNavigationProp>();
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const slide = onboardingSlides[currentIndex];
+  const isLastSlide = currentIndex === onboardingSlides.length - 1;
+  const SlideIcon = slide.icon;
+
+  const nextAction = useMemo(() => {
+    if (isLastSlide) {
+      return () => navigation.navigate('Login');
+    }
+
+    return () => setCurrentIndex((index) => Math.min(index + 1, onboardingSlides.length - 1));
+  }, [isLastSlide, navigation]);
 
   return (
-    <LinearGradient
-      colors={['#F7F8F4', '#EEF2EC']}
-      style={styles.container}
-    >
-      <View style={styles.logoWrapper}>
-        <View style={styles.logoCircle}>
-          <Coins size={34} color={colors.primary} />
+    <View style={styles.container}>
+      <View style={styles.topBar}>
+        <View />
+        <Pressable onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.skipText}>Skip</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.content}>
+        <View style={styles.illustrationWrap}>
+          <View style={styles.illustrationCircle}>
+            <SlideIcon
+              size={slide.iconSize}
+              color={colors.surface}
+              strokeWidth={2.2}
+            />
+          </View>
+        </View>
+
+        <View style={styles.copyBlock}>
+          <Text style={[styles.title, { maxWidth: slide.titleWidth }]}>{slide.title}</Text>
+          <Text style={styles.accent}>{slide.accent}</Text>
+          <Text style={styles.description}>{slide.description}</Text>
         </View>
       </View>
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Welcome to Chuma</Text>
-        <Text style={styles.subtitle}>
-          A calmer way to save, plan, and track money without noise.
-        </Text>
-      </View>
-
-      <View style={styles.features}>
-        <FeatureCard
-          icon={<Target size={22} color="#FFFFFF" />}
-          
-          title="Set Your Goals"
-          description="Save for school fees, emergencies, or business growth"
-        />
-        <FeatureCard
-          icon={<Coins size={22} color="#FFFFFF" />}
-          title="Auto-Save Daily"
-          description="Small amounts add up. Save as little as K5 per day"
-        />
-        <FeatureCard
-          icon={<TrendingUp size={22} color="#FFFFFF" />}
-          title="Watch It Grow"
-          description="Track your progress and celebrate your wins"
-        />
-      </View>
-
-      <Pressable
-        style={styles.button}
-        onPress={() => navigation.navigate('Login')}
-      >
-        <Text style={styles.buttonText}>Get Started</Text>
-        <ArrowRight size={20} color={colors.surface} />
-      </Pressable>
-    </LinearGradient>
-  );
-}
-
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}
-
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardRow}>
-        <View style={styles.iconBox}>{icon}</View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle}>{title}</Text>
-          <Text style={styles.cardDescription}>{description}</Text>
+      <View style={styles.footer}>
+        <View style={styles.pagination}>
+          {onboardingSlides.map((item, index) => {
+            const active = index === currentIndex;
+            return (
+              <View
+                key={item.id}
+                style={[
+                  styles.dot,
+                  active ? styles.dotActive : styles.dotInactive,
+                ]}
+              />
+            );
+          })}
         </View>
+
+        <Pressable style={styles.button} onPress={nextAction}>
+          <Text style={styles.buttonText}>{slide.buttonLabel}</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -86,87 +114,98 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 72,
-    paddingBottom: 40,
-  },
-  logoWrapper: {
-    marginBottom: 28,
-  },
-  logoCircle: {
-    width: 72,
-    height: 72,
     backgroundColor: colors.surface,
-    borderRadius: 24,
+    paddingTop: 48,
+    paddingHorizontal: 24,
+    paddingBottom: 48,
+    justifyContent: 'space-between',
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 20,
+  },
+  skipText: {
+    color: colors.textSubtle,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 44,
+  },
+  illustrationWrap: {
+    marginBottom: 34,
+  },
+  illustrationCircle: {
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
     ...shadows.card,
   },
-  header: {
-    marginBottom: 32,
+  copyBlock: {
+    alignItems: 'center',
   },
   title: {
-    fontSize: 34,
+    fontSize: 36,
+    lineHeight: 40,
+    fontWeight: '500',
     color: colors.text,
-    fontWeight: '700',
-    letterSpacing: -1,
-    marginBottom: 10,
+    textAlign: 'center',
+    letterSpacing: 0.2,
+    marginBottom: 12,
   },
-  subtitle: {
+  accent: {
+    fontSize: 18,
+    lineHeight: 28,
+    color: colors.success,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  description: {
     fontSize: 16,
-    color: colors.textMuted,
     lineHeight: 24,
+    color: colors.textMuted,
+    textAlign: 'center',
     maxWidth: 320,
   },
-  features: {
-    flex: 1,
-    gap: 14,
+  footer: {
+    gap: 24,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
-  },
-  cardRow: {
+  pagination: {
     flexDirection: 'row',
-    gap: 14,
-  },
-  iconBox: {
-    width: 45,
-    height: 45,
-    backgroundColor: colors.primary,
-    borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
   },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: 6,
+  dot: {
+    height: 6,
+    borderRadius: radii.pill,
   },
-  cardDescription: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
+  dotActive: {
+    width: 32,
+    backgroundColor: colors.primary,
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: '#D1D5DC',
   },
   button: {
+    height: 56,
+    borderRadius: 16,
     backgroundColor: colors.primary,
-    paddingVertical: 18,
-    borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 10,
   },
   buttonText: {
     color: colors.surface,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
 });
