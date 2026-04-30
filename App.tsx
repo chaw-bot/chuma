@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppDataProvider } from './context/AppDataContext';
 import { RootStackParamList } from './types/navigation';
 
+import Splash from './screens/Splash';
 import Onboarding from './screens/Onboarding';
 import Login from './screens/Login';
 import CompleteProfile from './screens/CompleteProfile';
@@ -42,12 +43,13 @@ export default function App() {
           style={styles.container}
         >
           <Stack.Navigator
-            initialRouteName="Onboarding"
+            initialRouteName="Splash"
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: 'transparent' },
             }}
           >
+            <Stack.Screen name="Splash" component={Splash} />
             <Stack.Screen name="Onboarding" component={Onboarding} />
             <Stack.Screen name="Login" component={Login} />
             <Stack.Screen name="CompleteProfile" component={CompleteProfile} />
