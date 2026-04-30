@@ -1,4 +1,5 @@
 export type RootStackParamList = {
+  Splash: undefined;
   Onboarding: undefined;
   Login: undefined;
   CompleteProfile:
@@ -23,6 +24,12 @@ export type RootStackParamList = {
     | undefined;
   InvestmentInsights: undefined;
   Notifications: undefined;
+  Deductions: undefined;
   ExpenseTracking: undefined;
+  AddExpense: undefined;
   Profile: undefined;
+  EditProfile: undefined;
+  NotificationPreferences: undefined;
+  LinkedMobileMoney: undefined;
+  PrivacyPolicy: undefined;
 };

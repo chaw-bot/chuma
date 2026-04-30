@@ -1,95 +1,142 @@
-import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import React, { useMemo, useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StatusBar as NativeStatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { ArrowLeft, ChevronDown } from 'lucide-react-native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, Repeat, Check } from 'lucide-react-native';
-import { useAppData } from '../context/AppDataContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  AutoSaveFrequency,
+  GoalCategory,
+  useAppData,
+} from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { parseAmount, sanitizeAmountInput } from '../utils/auth';
-import { colors, radii, shadows } from '../theme/colors';
+import { colors } from '../theme/colors';
 
-type AutomatedSavingsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AutomatedSavings'>;
-type AutomatedSavingsRouteProp = RouteProp<RootStackParamList, 'AutomatedSavings'>;
+type AutomatedSavingsNav = NativeStackNavigationProp<
+  RootStackParamList,
+  'AutomatedSavings'
+>;
+type AutomatedSavingsRoute = RouteProp<RootStackParamList, 'AutomatedSavings'>;
+
+const frequencies: Array<{ label: string; value: AutoSaveFrequency }> = [
+  { label: 'Daily', value: 'daily' },
+  { label: 'Weekly', value: 'weekly' },
+  { label: 'Monthly', value: 'monthly' },
+];
+
+function Toggle({ active, onPress }: { active: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityState={{ checked: active }}
+      onPress={onPress}
+      style={[styles.toggleTrack, active ? styles.toggleOn : styles.toggleOff]}
+    >
+      <View style={[styles.toggleThumb, active && styles.toggleThumbOn]} />
+    </Pressable>
+  );
+}
 
 export default function AutomatedSavings() {
-  const navigation = useNavigation<AutomatedSavingsNavigationProp>();
-  const route = useRoute<AutomatedSavingsRouteProp>();
-  const { addGoal } = useAppData();
+  const navigation = useNavigation<AutomatedSavingsNav>();
+  const route = useRoute<AutomatedSavingsRoute>();
+  const insets = useSafeAreaInsets();
+  const fallbackTop = Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0;
+  const topPadding = Math.max(insets.top, fallbackTop) + 12;
+  const { goals, addGoal } = useAppData();
   const params = route.params ?? {};
 
-  const goalName = params.goalName as string;
-  const targetAmount = params.targetAmount as string;
-  const timeline = params.timeline as string;
-  const category = params.category;
+  const initialGoal = useMemo(() => {
+    if (params.goalName) {
+      return goals.find(
+        (goal) => goal.name.toLowerCase() === params.goalName?.toLowerCase()
+      );
+    }
 
+    return goals[0];
+  }, [goals, params.goalName]);
+
+  const [selectedGoalId] = useState(initialGoal?.id ?? '');
   const [amount, setAmount] = useState('');
-  const [frequency, setFrequency] = useState('');
-  const [startDate, setStartDate] = useState('Tomorrow');
+  const [frequency, setFrequency] = useState<AutoSaveFrequency>('weekly');
+  const [startDate, setStartDate] = useState('');
+  const [active, setActive] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const frequencies = [
-    { id: 'daily', label: 'Daily', desc: 'Small amounts every day' },
-    { id: 'weekly', label: 'Weekly', desc: 'Once a week' },
-    { id: 'monthly', label: 'Monthly', desc: 'Once a month' },
-  ];
-
+  const selectedGoal = goals.find((goal) => goal.id === selectedGoalId);
+  const displayGoalName = selectedGoal?.name ?? params.goalName ?? '';
   const parsedAmount = parseAmount(amount);
-  const monthlyTotal = parsedAmount && frequency
-    ? frequency === 'daily'
-      ? parsedAmount * 30
-      : frequency === 'weekly'
-        ? parsedAmount * 4
-        : parsedAmount
-    : 0;
+  const canSave = Boolean(displayGoalName && parsedAmount && frequency);
 
-  const handleActivate = () => {
-    const parsedTarget = parseAmount(targetAmount);
-    const parsedTimeline = Number(timeline);
-
-    if (!parsedAmount || parsedAmount < 5) {
-      setErrorMessage('Enter a valid amount of at least K 5.');
+  const handleSave = () => {
+    if (!parsedAmount || !displayGoalName) {
+      setErrorMessage('Choose a goal and enter a valid amount.');
       return;
     }
 
-    if (!parsedTarget || !parsedTimeline || !category || !goalName.trim()) {
-      setErrorMessage('Goal details are incomplete. Please create the goal again.');
-      return;
-    }
+    const category = selectedGoal?.category ?? params.category ?? 'education';
+    const targetAmount =
+      selectedGoal?.targetAmount ?? parseAmount(params.targetAmount ?? '') ?? 0;
+    const timelineMonths =
+      selectedGoal?.timelineMonths ?? (Number(params.timeline ?? 1) || 1);
 
     addGoal({
-      name: goalName.trim(),
-      category,
-      targetAmount: parsedTarget,
-      timelineMonths: parsedTimeline,
+      name: displayGoalName,
+      category: category as GoalCategory,
+      targetAmount,
+      timelineMonths,
       autoSaveAmount: parsedAmount,
-      autoSaveFrequency: frequency as 'daily' | 'weekly' | 'monthly',
-      autoSaveStartDate: startDate,
+      autoSaveFrequency: frequency,
+      autoSaveStartDate: startDate || 'Apr 15, 2026',
       color: colors.primary,
     });
 
-    navigation.navigate('Dashboard');
+    navigation.navigate('Deductions');
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Pressable onPress={() => navigation.goBack()}>
-        <Text style={styles.back}>← Back</Text>
-      </Pressable>
+    <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: topPadding }]}>
+        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+          <ArrowLeft size={24} color="#101828" strokeWidth={2.2} />
+        </Pressable>
+        <Text style={styles.title}>Add Deduction</Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
-      <Text style={styles.title}>Setup Auto-Save</Text>
-      <Text style={styles.subtitle}>Automate the habit and keep the interface calm.</Text>
-
-      {goalName ? (
-        <View style={styles.goalBox}>
-          <Text style={styles.goalLabel}>Saving for</Text>
-          <Text style={styles.goalName}>{goalName}</Text>
-          <Text style={styles.goalTarget}>Target: K {targetAmount}</Text>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 116 },
+        ]}
+      >
+        <View style={styles.infoCard}>
+          <Text style={styles.infoText}>
+            Set up automatic deductions from your mobile money account
+          </Text>
         </View>
-      ) : null}
 
-      <Text style={styles.label}>How Much Each Time?</Text>
-      <View style={styles.amountContainer}>
-        <Text style={styles.currency}>K</Text>
+        <Text style={styles.label}>Select Goal</Text>
+        <Pressable style={styles.selectField}>
+          <Text style={[styles.selectText, !displayGoalName && styles.placeholder]}>
+            {displayGoalName}
+          </Text>
+          <ChevronDown size={20} color="#4A5565" strokeWidth={2} />
+        </Pressable>
+
+        <Text style={styles.label}>Amount per Deduction (ZMW)</Text>
         <TextInput
           value={amount}
           onChangeText={(value) => {
@@ -97,296 +144,247 @@ export default function AutomatedSavings() {
             setErrorMessage('');
           }}
           keyboardType="numeric"
-          placeholder="0"
-          placeholderTextColor={colors.textSubtle}
-          style={styles.amountInput}
+          placeholder="0.00"
+          placeholderTextColor="#99A1AF"
+          style={styles.input}
         />
-      </View>
-      <Text style={styles.helper}>Minimum K 5 per deduction</Text>
-      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+        <Text style={styles.helper}>Amount to save each time</Text>
 
-      <Text style={styles.label}>How Often?</Text>
-      <View style={styles.frequencyContainer}>
-        {frequencies.map((freq) => {
-          const selected = frequency === freq.id;
-          return (
-            <Pressable
-              key={freq.id}
-              style={[styles.frequencyCard, selected && styles.frequencySelected]}
-              onPress={() => setFrequency(freq.id)}
-            >
-              <View style={[styles.frequencyIcon, selected && styles.frequencyIconSelected]}>
-                <Repeat size={18} color={selected ? colors.surface : colors.primary} />
-              </View>
+        <Text style={styles.label}>Frequency</Text>
+        <View style={styles.segmented}>
+          {frequencies.map((item) => {
+            const selected = frequency === item.value;
 
-              <View style={{ flex: 1 }}>
-                <Text style={styles.frequencyTitle}>{freq.label}</Text>
-                <Text style={styles.frequencyDesc}>{freq.desc}</Text>
-              </View>
-
-              {selected ? <Check size={18} color={colors.primary} /> : null}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <Text style={styles.label}>When to Start?</Text>
-      <View style={styles.startDateBox}>
-        <Calendar size={18} color={colors.primary} />
-        <View style={styles.startDateOptions}>
-          {['Tomorrow', 'In 2 days', 'Next Monday', 'Next month'].map((option) => (
-            <Pressable key={option} onPress={() => setStartDate(option)}>
-              <Text
-                style={[
-                  styles.startDateOption,
-                  startDate === option && styles.startDateSelected,
-                ]}
+            return (
+              <Pressable
+                key={item.value}
+                style={[styles.segment, selected && styles.segmentSelected]}
+                onPress={() => setFrequency(item.value)}
               >
-                {option}
-              </Text>
-            </Pressable>
-          ))}
+                <Text
+                  style={[
+                    styles.segmentText,
+                    selected && styles.segmentTextSelected,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+
+        <Text style={styles.label}>Start Date</Text>
+        <TextInput
+          value={startDate}
+          onChangeText={setStartDate}
+          placeholder=""
+          placeholderTextColor="#99A1AF"
+          style={styles.input}
+        />
+
+        <View style={styles.activeRow}>
+          <Text style={styles.activeLabel}>Active</Text>
+          <Toggle active={active} onPress={() => setActive((value) => !value)} />
+        </View>
+
+        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <Pressable
+          disabled={!canSave}
+          onPress={handleSave}
+          style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+        >
+          <Text style={styles.saveButtonText}>Save Deduction</Text>
+        </Pressable>
       </View>
-
-      {parsedAmount && frequency ? (
-        <View style={styles.summaryBox}>
-          <Text style={styles.summaryLabel}>Your Auto-Save Plan</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLight}>Amount</Text>
-            <Text style={styles.summaryValue}>K {amount}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLight}>Frequency</Text>
-            <Text style={styles.summaryValue}>{frequency}</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLight}>Monthly Total</Text>
-            <Text style={styles.summaryBig}>K {monthlyTotal.toLocaleString()}</Text>
-          </View>
-        </View>
-      ) : null}
-
-      <Pressable
-        style={[styles.button, (!parsedAmount || !frequency) && styles.buttonDisabled]}
-        disabled={!parsedAmount || !frequency}
-        onPress={handleActivate}
-      >
-        <Check color={colors.surface} size={18} />
-        <Text style={styles.buttonText}>Activate Auto-Save</Text>
-      </Pressable>
-
-      <Text style={styles.footerText}>You can pause or adjust this anytime.</Text>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
-    paddingBottom: 48,
-    backgroundColor: colors.background,
+  screen: {
+    flex: 1,
+    backgroundColor: colors.surface,
   },
-  back: {
-    color: colors.primary,
-    marginBottom: 16,
-    marginTop: 10,
-    fontSize: 16,
+  content: {
+    paddingHorizontal: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    marginBottom: 24,
+    backgroundColor: colors.surface,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: -0.8,
-  },
-  subtitle: {
-    color: colors.textMuted,
-    marginBottom: 22,
-    marginTop: 6,
-    lineHeight: 22,
-  },
-  goalBox: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 18,
-    ...shadows.card,
-  },
-  goalLabel: {
-    fontSize: 12,
-    color: colors.textSubtle,
-    marginBottom: 4,
-  },
-  goalName: {
-    fontSize: 20,
+    fontSize: 18,
+    lineHeight: 28,
     fontWeight: '600',
-    color: colors.text,
+    color: '#101828',
   },
-  goalTarget: {
-    color: colors.textMuted,
-    marginTop: 4,
+  headerSpacer: {
+    width: 44,
+  },
+  infoCard: {
+    minHeight: 112,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+    marginBottom: 28,
+  },
+  infoText: {
+    fontSize: 18,
+    lineHeight: 28,
+    fontWeight: '500',
+    color: colors.surface,
   },
   label: {
-    marginTop: 14,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
+    color: '#101828',
     marginBottom: 8,
-    fontWeight: '600',
-    color: colors.text,
   },
-  amountContainer: {
+  selectField: {
+    height: 56,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DC',
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: 14,
-    backgroundColor: colors.surface,
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
-  currency: {
-    fontSize: 18,
-    marginRight: 8,
-    color: colors.textMuted,
-  },
-  amountInput: {
+  selectText: {
     flex: 1,
-    fontSize: 20,
-    paddingVertical: 14,
-    color: colors.text,
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#101828',
+  },
+  placeholder: {
+    color: '#99A1AF',
+  },
+  input: {
+    height: 56,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DC',
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#101828',
+    marginBottom: 8,
   },
   helper: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#6A7282',
+    marginBottom: 20,
+  },
+  segmented: {
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    padding: 4,
+    flexDirection: 'row',
+    marginBottom: 24,
+  },
+  segment: {
+    flex: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentSelected: {
+    backgroundColor: colors.primary,
+  },
+  segmentText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
+    color: '#4A5565',
+  },
+  segmentTextSelected: {
+    color: colors.surface,
+  },
+  activeRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  activeLabel: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
+    color: '#101828',
+  },
+  toggleTrack: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleOn: {
+    backgroundColor: colors.primary,
+  },
+  toggleOff: {
+    backgroundColor: '#D1D5DC',
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+  },
+  toggleThumbOn: {
+    alignSelf: 'flex-end',
   },
   errorText: {
-    fontSize: 12,
-    color: colors.danger,
     marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#C10007',
   },
-  frequencyContainer: {
-    gap: 10,
-  },
-  frequencyCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 12,
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 24,
+    paddingTop: 16,
     backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
   },
-  frequencySelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  frequencyIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
+  saveButton: {
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  frequencyIconSelected: {
-    backgroundColor: colors.primary,
+  saveButtonDisabled: {
+    opacity: 0.5,
   },
-  frequencyTitle: {
-    fontWeight: '600',
-    color: colors.text,
-  },
-  frequencyDesc: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  startDateBox: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  startDateOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    flex: 1,
-  },
-  startDateOption: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.textMuted,
-  },
-  startDateSelected: {
-    backgroundColor: colors.primary,
-    color: colors.surface,
-    borderColor: colors.primary,
-  },
-  summaryBox: {
-    marginTop: 20,
-    padding: 20,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
-  },
-  summaryLabel: {
-    color: colors.textMuted,
-    marginBottom: 10,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  summaryLight: {
-    color: colors.textMuted,
-  },
-  summaryValue: {
-    color: colors.text,
+  saveButtonText: {
     fontSize: 16,
+    lineHeight: 24,
     fontWeight: '600',
-  },
-  summaryBig: {
-    color: colors.primary,
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 10,
-  },
-  button: {
-    marginTop: 22,
-    backgroundColor: colors.primary,
-    padding: 18,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-  buttonText: {
     color: colors.surface,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  footerText: {
-    textAlign: 'center',
-    marginTop: 14,
-    fontSize: 12,
-    color: colors.textMuted,
   },
 });

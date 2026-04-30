@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Platform,
+  StatusBar as NativeStatusBar,
   View,
   Text,
   StyleSheet,
@@ -10,6 +12,7 @@ import {
 import { ArrowLeft } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { colors, radii, shadows } from '../theme/colors';
@@ -29,6 +32,11 @@ const providers = [
 export default function CompleteProfile() {
   const navigation = useNavigation<CompleteProfileNavigationProp>();
   const route = useRoute<CompleteProfileRouteProp>();
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
+  );
   const { signInDemo } = useAppData();
   const phoneNumber = route.params?.phoneNumber ?? '';
 
@@ -62,18 +70,18 @@ export default function CompleteProfile() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-            <ArrowLeft size={22} color={colors.text} />
-          </Pressable>
+      <View style={[styles.header, { paddingTop: topInset + 14 }]}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+          <ArrowLeft size={22} color={colors.text} />
+        </Pressable>
 
-          <View style={styles.headerCopy}>
-            <Text style={styles.title}>Complete Your Profile</Text>
-            <Text style={styles.phoneText}>{phoneNumber}</Text>
-          </View>
+        <View style={styles.headerCopy}>
+          <Text style={styles.title}>Complete Your Profile</Text>
+          <Text style={styles.phoneText}>{phoneNumber}</Text>
         </View>
+      </View>
 
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.banner}>
           <Text style={styles.bannerText}>
             Just a few more details to set up your savings account
@@ -150,7 +158,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   content: {
-    paddingTop: 50,
     paddingHorizontal: 24,
     paddingBottom: 32,
   },
@@ -158,13 +165,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    marginBottom: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   backButton: {
-    width: 24,
-    height: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
   },
   headerCopy: {
     flex: 1,

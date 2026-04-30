@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
+import {
+  Platform,
+  StatusBar as NativeStatusBar,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Switch,
+} from 'react-native';
 import { CheckCircle, Calendar, TrendingUp, Gift } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { BottomNav } from '../components/BottomVav';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types/navigation';
 import { colors, radii, shadows } from '../theme/colors';
 
@@ -14,6 +23,11 @@ type NotificationsNavigationProp = NativeStackNavigationProp<
 
 export default function Notifications() {
   const navigation = useNavigation<NotificationsNavigationProp>();
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
+  );
 
   const notifications = [
     {
@@ -51,64 +65,72 @@ export default function Notifications() {
   const [tipsEnabled, setTipsEnabled] = useState(true);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Pressable onPress={() => navigation.navigate('Dashboard')}>
-        <Text style={styles.backText}>← Back</Text>
-      </Pressable>
-
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Notifications</Text>
-          <Text style={styles.subtitle}>A simple feed of useful updates.</Text>
-        </View>
-        <Pressable>
-          <Text style={styles.markAll}>Mark all read</Text>
+    <View style={styles.screen}>
+      <View style={[styles.headerShell, { paddingTop: topInset + 14 }]}>
+        <Pressable onPress={() => navigation.navigate('Dashboard')}>
+          <Text style={styles.backText}>← Back</Text>
         </Pressable>
+
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Notifications</Text>
+            <Text style={styles.subtitle}>A simple feed of useful updates.</Text>
+          </View>
+          <Pressable>
+            <Text style={styles.markAll}>Mark all read</Text>
+          </Pressable>
+        </View>
       </View>
 
-      {notifications.map((notif) => {
-        const Icon = notif.icon;
-        return (
-          <View key={notif.id} style={styles.card}>
-            <View style={styles.cardRow}>
-              <View style={styles.iconWrapper}>
-                <Icon width={18} height={18} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.cardTitle}>{notif.title}</Text>
-                <Text style={styles.cardMessage}>{notif.message}</Text>
-                <Text style={styles.cardTime}>{notif.time}</Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: insets.bottom + 120 },
+        ]}
+      >
+        {notifications.map((notif) => {
+          const Icon = notif.icon;
+          return (
+            <View key={notif.id} style={styles.card}>
+              <View style={styles.cardRow}>
+                <View style={styles.iconWrapper}>
+                  <Icon width={18} height={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.cardTitle}>{notif.title}</Text>
+                  <Text style={styles.cardMessage}>{notif.message}</Text>
+                  <Text style={styles.cardTime}>{notif.time}</Text>
+                </View>
               </View>
             </View>
-          </View>
-        );
-      })}
+          );
+        })}
 
-      <View style={styles.settingsCard}>
-        <Text style={styles.settingsTitle}>Preferences</Text>
+        <View style={styles.settingsCard}>
+          <Text style={styles.settingsTitle}>Preferences</Text>
 
-        <SettingRow
-          label="Savings reminders"
-          description="Get notified before deductions"
-          value={remindersEnabled}
-          onChange={setRemindersEnabled}
-        />
-        <SettingRow
-          label="Milestone celebrations"
-          description="Celebrate your progress"
-          value={milestonesEnabled}
-          onChange={setMilestonesEnabled}
-        />
-        <SettingRow
-          label="Savings tips"
-          description="Receive weekly money tips"
-          value={tipsEnabled}
-          onChange={setTipsEnabled}
-        />
-      </View>
-
-      <BottomNav />
-    </ScrollView>
+          <SettingRow
+            label="Savings reminders"
+            description="Get notified before deductions"
+            value={remindersEnabled}
+            onChange={setRemindersEnabled}
+          />
+          <SettingRow
+            label="Milestone celebrations"
+            description="Celebrate your progress"
+            value={milestonesEnabled}
+            onChange={setMilestonesEnabled}
+          />
+          <SettingRow
+            label="Savings tips"
+            description="Receive weekly money tips"
+            value={tipsEnabled}
+            onChange={setTipsEnabled}
+          />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -140,21 +162,26 @@ function SettingRow({
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     padding: 24,
-    paddingBottom: 120,
-    backgroundColor: colors.background,
   },
   backText: {
     color: colors.primary,
     fontSize: 16,
-    marginBottom: 20,
-    marginTop: 10,
+    marginBottom: 16,
+  },
+  headerShell: {
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
   },
   title: {
     fontSize: 30,

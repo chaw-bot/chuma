@@ -44,6 +44,7 @@ type AppDataContextValue = {
   addGoal: (goal: AddGoalInput) => void;
   addExpense: (expense: AddExpenseInput) => void;
   signInDemo: (user: SessionUser) => void;
+  updateCurrentUser: (updates: Partial<SessionUser>) => void;
   signOut: () => void;
 };
 
@@ -153,6 +154,21 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       },
       signInDemo: (user) => {
         setCurrentUser(user);
+      },
+      updateCurrentUser: (updates) => {
+        setCurrentUser((current) => {
+          const baseUser =
+            current ??
+            ({
+              phoneNumber: '+260 97 123 4567',
+              mode: 'demo',
+            } satisfies SessionUser);
+
+          return {
+            ...baseUser,
+            ...updates,
+          };
+        });
       },
       signOut: () => {
         setCurrentUser(null);

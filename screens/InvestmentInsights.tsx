@@ -1,9 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import {
+  Platform,
+  StatusBar as NativeStatusBar,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+} from 'react-native';
 import { Shield, Clock, TrendingUp, Info } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { BottomNav } from '../components/BottomVav';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types/navigation';
 import { colors, radii, shadows } from '../theme/colors';
 
@@ -14,6 +22,11 @@ type InvestmentNavigationProp = NativeStackNavigationProp<
 
 export default function InvestmentInsights() {
   const navigation = useNavigation<InvestmentNavigationProp>();
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
+  );
 
   const investments = [
     {
@@ -46,77 +59,84 @@ export default function InvestmentInsights() {
   ];
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Pressable onPress={() => navigation.navigate('Dashboard')}>
-        <Text style={styles.backText}>← Back</Text>
-      </Pressable>
-
-      <View style={styles.header}>
-        <Text style={styles.title}>Investment Options</Text>
-        <Text style={styles.subtitle}>Low-noise suggestions to help savings grow.</Text>
-      </View>
-
-      <View style={styles.infoBanner}>
-        <Info width={18} height={18} color={colors.primary} />
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={styles.infoTitle}>New to investing?</Text>
-          <Text style={styles.infoText}>
-            Start with lower-risk products and add complexity only when you need it.
-          </Text>
+    <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: topInset + 14 }]}>
+        <Pressable onPress={() => navigation.navigate('Dashboard')}>
+          <Text style={styles.backText}>← Back</Text>
+        </Pressable>
+        <View>
+          <Text style={styles.title}>Investment Options</Text>
+          <Text style={styles.subtitle}>Low-noise suggestions to help savings grow.</Text>
         </View>
       </View>
 
-      {investments.map((inv) => {
-        const Icon = inv.icon;
-        return (
-          <View key={inv.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.iconWrapper}>
-                <Icon width={20} height={20} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{inv.name}</Text>
-                <Text style={styles.cardDesc}>{inv.description}</Text>
-              </View>
-            </View>
-
-            <View style={styles.cardStats}>
-              <StatRow label="Risk Level" value={inv.risk} />
-              <StatRow label="Expected Returns" value={inv.returns} />
-              <StatRow label="Minimum Amount" value={`K ${inv.minAmount}`} />
-            </View>
-
-            <Pressable style={styles.learnMoreButton}>
-              <Text style={styles.learnMoreText}>Learn More</Text>
-            </Pressable>
-          </View>
-        );
-      })}
-
-      <View style={styles.comparisonCard}>
-        <Text style={styles.comparisonTitle}>Simple comparison</Text>
-        <View style={styles.comparisonBox}>
-          <View style={styles.comparisonRow}>
-            <Text style={styles.comparisonLabel}>Regular savings account</Text>
-            <Text style={styles.comparisonValue}>K 100 → K 103</Text>
-          </View>
-          <View style={styles.comparisonRow}>
-            <Text style={styles.comparisonLabel}>Treasury bill</Text>
-            <Text style={styles.comparisonValue}>K 100 → K 115</Text>
-          </View>
-        </View>
-        <Text style={styles.comparisonNote}>After 1 year, the difference becomes easier to feel.</Text>
-      </View>
-
-      <Pressable
-        style={styles.ctaButton}
-        onPress={() => navigation.navigate('Dashboard')}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: insets.bottom + 120 },
+        ]}
       >
-        <Text style={styles.ctaText}>Talk to an Advisor</Text>
-      </Pressable>
+        <View style={styles.infoBanner}>
+          <Info width={18} height={18} color={colors.primary} />
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={styles.infoTitle}>New to investing?</Text>
+            <Text style={styles.infoText}>
+              Start with lower-risk products and add complexity only when you need it.
+            </Text>
+          </View>
+        </View>
 
-      <BottomNav />
-    </ScrollView>
+        {investments.map((inv) => {
+          const Icon = inv.icon;
+          return (
+            <View key={inv.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.iconWrapper}>
+                  <Icon width={20} height={20} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{inv.name}</Text>
+                  <Text style={styles.cardDesc}>{inv.description}</Text>
+                </View>
+              </View>
+
+              <View style={styles.cardStats}>
+                <StatRow label="Risk Level" value={inv.risk} />
+                <StatRow label="Expected Returns" value={inv.returns} />
+                <StatRow label="Minimum Amount" value={`K ${inv.minAmount}`} />
+              </View>
+
+              <Pressable style={styles.learnMoreButton}>
+                <Text style={styles.learnMoreText}>Learn More</Text>
+              </Pressable>
+            </View>
+          );
+        })}
+
+        <View style={styles.comparisonCard}>
+          <Text style={styles.comparisonTitle}>Simple comparison</Text>
+          <View style={styles.comparisonBox}>
+            <View style={styles.comparisonRow}>
+              <Text style={styles.comparisonLabel}>Regular savings account</Text>
+              <Text style={styles.comparisonValue}>K 100 → K 103</Text>
+            </View>
+            <View style={styles.comparisonRow}>
+              <Text style={styles.comparisonLabel}>Treasury bill</Text>
+              <Text style={styles.comparisonValue}>K 100 → K 115</Text>
+            </View>
+          </View>
+          <Text style={styles.comparisonNote}>After 1 year, the difference becomes easier to feel.</Text>
+        </View>
+
+        <Pressable
+          style={styles.ctaButton}
+          onPress={() => navigation.navigate('Dashboard')}
+        >
+          <Text style={styles.ctaText}>Talk to an Advisor</Text>
+        </Pressable>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -130,19 +150,22 @@ function StatRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     padding: 24,
-    paddingBottom: 120,
-    backgroundColor: colors.background,
   },
   backText: {
     color: colors.primary,
     fontSize: 16,
-    marginBottom: 20,
-    marginTop: 10,
+    marginBottom: 16,
   },
   header: {
-    marginBottom: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 30,

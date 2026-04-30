@@ -9,10 +9,12 @@ import {
   Platform,
   ActivityIndicator,
   TextInput as RNTextInput,
+  ScrollView,
 } from 'react-native';
 import { ShieldCheck, Smartphone, ArrowRight, KeyRound } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { normalizeZmPhone } from '../utils/auth';
@@ -25,6 +27,7 @@ type LoginNavigationProp = NativeStackNavigationProp<
 
 export default function Login() {
   const navigation = useNavigation<LoginNavigationProp>();
+  const insets = useSafeAreaInsets();
   const codeInputRef = useRef<RNTextInput>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -125,10 +128,20 @@ export default function Login() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {!isCodeSent ? (
-        <>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top, 24) + 24,
+            paddingBottom: Math.max(insets.bottom, 24) + 24,
+          },
+        ]}
+      >
+        {!isCodeSent ? (
           <View style={styles.entryContent}>
             <View style={styles.brandBlock}>
               <View style={styles.brandIconWrap}>
@@ -178,9 +191,7 @@ export default function Login() {
 
               {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
             </View>
-          </View>
 
-          <View style={styles.footer}>
             <Pressable
               style={[styles.primaryButton, !canSendCode && styles.primaryButtonDisabled]}
               onPress={handleSendCode}
@@ -194,72 +205,70 @@ export default function Login() {
             </Pressable>
 
             <Text style={styles.legalText}>
-              By continuing, you agree to Chuma&apos;s Terms of Service and Privacy Policy
+              By continuing, you agree to Chuma's Terms of Service and Privacy Policy
             </Text>
           </View>
-        </>
-      ) : (
-        <View style={styles.verifyContainer}>
-          <Pressable onPress={resetPhoneEntry}>
-            <Text style={styles.backText}>← Back</Text>
-          </Pressable>
-
-          <View style={styles.verifyHeader}>
-            <View style={styles.brandIconWrap}>
-              <KeyRound size={34} color={colors.surface} strokeWidth={2.2} />
-            </View>
-            <Text style={styles.brandTitle}>Verify Number</Text>
-            <Text style={styles.brandSubtitle}>Enter the code sent to {verification?.phone ?? e164Phone}</Text>
-          </View>
-
-          <Pressable
-            style={styles.otpRow}
-            onPress={() => codeInputRef.current?.focus()}
-          >
-            {Array.from({ length: 6 }).map((_, index) => {
-              const digit = verificationCode[index] ?? '';
-              const isActive = index === verificationCode.length && verificationCode.length < 6;
-              return (
-                <View
-                  key={index}
-                  style={[styles.otpBox, isActive && styles.otpBoxActive]}
-                >
-                  <Text style={styles.otpDigit}>{digit}</Text>
-                </View>
-              );
-            })}
-          </Pressable>
-
-          <RNTextInput
-            ref={codeInputRef}
-            value={verificationCode}
-            onChangeText={(text) => {
-              setVerificationCode(text.replace(/\D/g, '').slice(0, 6));
-              setErrorMessage('');
-            }}
-            keyboardType="number-pad"
-            maxLength={6}
-            style={styles.hiddenInput}
-          />
-
-          <Text style={styles.demoCode}>Demo code: {verification?.code ?? '------'}</Text>
-
-          <View style={styles.resendRow}>
-            <Text style={styles.helperText}>
-              {resendSeconds > 0
-                ? `Resend in ${String(resendSeconds).padStart(2, '0')}s`
-                : 'Did not get a code?'}
-            </Text>
-            <Pressable onPress={handleSendCode} disabled={!canResendCode}>
-              <Text style={[styles.resendLink, !canResendCode && styles.resendLinkDisabled]}>
-                Resend
-              </Text>
+        ) : (
+          <View style={styles.verifyContainer}>
+            <Pressable onPress={resetPhoneEntry}>
+              <Text style={styles.backText}>← Back</Text>
             </Pressable>
-          </View>
 
-          {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+            <View style={styles.verifyHeader}>
+              <View style={styles.brandIconWrap}>
+                <KeyRound size={34} color={colors.surface} strokeWidth={2.2} />
+              </View>
+              <Text style={styles.brandTitle}>Verify Number</Text>
+              <Text style={styles.brandSubtitle}>Enter the code sent to {verification?.phone ?? e164Phone}</Text>
+            </View>
 
-          <View style={styles.verifyFooter}>
+            <Pressable
+              style={styles.otpRow}
+              onPress={() => codeInputRef.current?.focus()}
+            >
+              {Array.from({ length: 6 }).map((_, index) => {
+                const digit = verificationCode[index] ?? '';
+                const isActive = index === verificationCode.length && verificationCode.length < 6;
+                return (
+                  <View
+                    key={index}
+                    style={[styles.otpBox, isActive && styles.otpBoxActive]}
+                  >
+                    <Text style={styles.otpDigit}>{digit}</Text>
+                  </View>
+                );
+              })}
+            </Pressable>
+
+            <RNTextInput
+              ref={codeInputRef}
+              value={verificationCode}
+              onChangeText={(text) => {
+                setVerificationCode(text.replace(/\D/g, '').slice(0, 6));
+                setErrorMessage('');
+              }}
+              keyboardType="number-pad"
+              maxLength={6}
+              style={styles.hiddenInput}
+            />
+
+            <Text style={styles.demoCode}>Demo code: {verification?.code ?? '------'}</Text>
+
+            <View style={styles.resendRow}>
+              <Text style={styles.helperText}>
+                {resendSeconds > 0
+                  ? `Resend in ${String(resendSeconds).padStart(2, '0')}s`
+                  : 'Did not get a code?'}
+              </Text>
+              <Pressable onPress={handleSendCode} disabled={!canResendCode}>
+                <Text style={[styles.resendLink, !canResendCode && styles.resendLinkDisabled]}>
+                  Resend
+                </Text>
+              </Pressable>
+            </View>
+
+            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
             <Pressable
               style={[styles.primaryButton, !canVerifyCode && styles.primaryButtonDisabled]}
               onPress={handleVerifyCode}
@@ -275,8 +284,8 @@ export default function Login() {
               )}
             </Pressable>
           </View>
-        </View>
-      )}
+        )}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -285,19 +294,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.surface,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 48,
     justifyContent: 'space-between',
   },
   entryContent: {
-    flex: 1,
-    // justifyContent: 'flex-end',
-    gap: 32,
+    flexGrow: 1,
+    justifyContent: 'center',
+    gap: 24,
   },
   brandBlock: {
     alignItems: 'center',
-    marginTop: 80,
+    marginTop: 12,
   },
   brandIconWrap: {
     width: 80,
@@ -388,9 +398,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.surface,
   },
-  footer: {
-    gap: 16,
-  },
   primaryButton: {
     height: 56,
     borderRadius: 16,
@@ -415,6 +422,7 @@ const styles = StyleSheet.create({
     color: '#6A7282',
     textAlign: 'center',
     paddingHorizontal: 18,
+    marginTop: -8,
   },
   errorText: {
     marginTop: 8,
@@ -422,8 +430,8 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   verifyContainer: {
-    flex: 1,
-    justifyContent: 'space-between',
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   backText: {
     color: colors.primary,
@@ -486,8 +494,5 @@ const styles = StyleSheet.create({
   },
   resendLinkDisabled: {
     color: colors.textSubtle,
-  },
-  verifyFooter: {
-    paddingBottom: 8,
   },
 });

@@ -1,132 +1,119 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { PiggyBank, Target, Plus, TrendingUp, User } from 'lucide-react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { CalendarDays, Home, ReceiptText, Target } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types/navigation';
-import { colors, radii, shadows } from '../theme/colors';
+import { colors } from '../theme/colors';
 
-type BottomNavProps = NativeStackNavigationProp<RootStackParamList>;
+export type BottomNavRoute =
+  | 'Dashboard'
+  | 'SavingsProgress'
+  | 'Deductions'
+  | 'ExpenseTracking';
 
-export function BottomNav() {
-  const navigation = useNavigation<BottomNavProps>();
-  const route = useRoute<RouteProp<RootStackParamList>>();
-  const currentRoute = route.name;
-  const isActive = (path: keyof RootStackParamList) => currentRoute === path;
+type BottomNavProps = {
+  activeRoute: keyof RootStackParamList;
+  onNavigate: (route: BottomNavRoute) => void;
+};
+
+const tabItems: Array<{
+  label: string;
+  route: BottomNavRoute;
+  activeRoutes: Array<keyof RootStackParamList>;
+  icon: typeof Home;
+}> = [
+  {
+    label: 'Home',
+    route: 'Dashboard',
+    activeRoutes: ['Dashboard'],
+    icon: Home,
+  },
+  {
+    label: 'Goals',
+    route: 'SavingsProgress',
+    activeRoutes: ['SavingsProgress', 'CreateGoal'],
+    icon: Target,
+  },
+  {
+    label: 'Deductions',
+    route: 'Deductions',
+    activeRoutes: ['Deductions', 'AutomatedSavings'],
+    icon: CalendarDays,
+  },
+  {
+    label: 'Expenses',
+    route: 'ExpenseTracking',
+    activeRoutes: ['ExpenseTracking', 'AddExpense'],
+    icon: ReceiptText,
+  },
+];
+
+export function BottomNav({ activeRoute, onNavigate }: BottomNavProps) {
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.navRow}>
-        <NavItem
-          label="Home"
-          active={isActive('Dashboard')}
-          onPress={() => navigation.navigate('Dashboard')}
-          icon={<PiggyBank width={18} height={18} color={isActive('Dashboard') ? colors.primary : colors.textSubtle} />}
-        />
-        <NavItem
-          label="Goals"
-          active={isActive('SavingsProgress') || isActive('AutomatedSavings')}
-          onPress={() => navigation.navigate('SavingsProgress')}
-          icon={<Target width={18} height={18} color={isActive('SavingsProgress') || isActive('AutomatedSavings') ? colors.primary : colors.textSubtle} />}
-        />
-        <Pressable
-          style={styles.addButtonWrapper}
-          onPress={() => navigation.navigate('CreateGoal')}
-        >
-          <View style={styles.addButton}>
-            <Plus width={22} height={22} color={colors.surface} />
-          </View>
-        </Pressable>
-        <NavItem
-          label="Invest"
-          active={isActive('InvestmentInsights')}
-          onPress={() => navigation.navigate('InvestmentInsights')}
-          icon={<TrendingUp width={18} height={18} color={isActive('InvestmentInsights') ? colors.primary : colors.textSubtle} />}
-        />
-        <NavItem
-          label="Profile"
-          active={isActive('Profile')}
-          onPress={() => navigation.navigate('Profile')}
-          icon={<User width={18} height={18} color={isActive('Profile') ? colors.primary : colors.textSubtle} />}
-        />
+        {tabItems.map((item) => {
+          const active = item.activeRoutes.includes(activeRoute);
+          const Icon = item.icon;
+
+          return (
+            <Pressable
+              key={item.route}
+              style={styles.navItem}
+              onPress={() => onNavigate(item.route)}
+            >
+              <Icon
+                width={24}
+                height={24}
+                color={active ? colors.primary : '#98A2B3'}
+                strokeWidth={2.1}
+              />
+              <Text style={[styles.label, active && styles.activeLabel]}>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
-  );
-}
-
-function NavItem({
-  active,
-  icon,
-  label,
-  onPress,
-}: {
-  active: boolean;
-  icon: React.ReactNode;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable style={styles.navItem} onPress={onPress}>
-      <View style={[styles.iconWrapper, active && styles.activeIconBg]}>
-        {icon}
-      </View>
-      <Text style={[styles.label, active && styles.activeLabel]}>{label}</Text>
-    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 18,
-    left: 20,
-    right: 20,
-    backgroundColor: 'transparent',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
   navRow: {
+    height: 60,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    ...shadows.card,
+    justifyContent: 'space-between',
   },
   navItem: {
+    width: 72,
+    height: 60,
     alignItems: 'center',
-    minWidth: 54,
-  },
-  iconWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 14,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  activeIconBg: {
-    backgroundColor: colors.primarySoft,
+    gap: 4,
   },
   label: {
-    fontSize: 11,
-    color: colors.textSubtle,
-    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textMuted,
+    fontWeight: '500',
   },
   activeLabel: {
     color: colors.primary,
-    fontWeight: '600',
-  },
-  addButtonWrapper: {
-    marginTop: -18,
-  },
-  addButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
