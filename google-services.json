@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "854743456929",
+    "project_id": "chuma-26",
+    "storage_bucket": "chuma-26.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:854743456929:android:adf9c8fef359cd170964e0",
+        "android_client_info": {
+          "package_name": "com.chaw.chuma"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAb1aSDCkyxJd6lkLJ4JzRgmtOL-QxA9J4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
