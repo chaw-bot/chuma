@@ -26,24 +26,28 @@ const providers: Array<{
   name: string;
   description: string;
   dotColor: string;
+  enabled: boolean;
 }> = [
   {
     id: 'mtn',
     name: 'MTN Mobile Money',
     description: 'Primary deductions and savings account',
     dotColor: '#FCD34D',
+    enabled: true,
   },
   {
     id: 'airtel',
     name: 'Airtel Money',
-    description: 'Link your Airtel mobile money wallet',
+    description: 'Coming soon',
     dotColor: '#EF4444',
+    enabled: false,
   },
   {
     id: 'zamtel',
     name: 'Zamtel Kwacha',
-    description: 'Use Zamtel for deductions and deposits',
+    description: 'Coming soon',
     dotColor: '#22C55E',
+    enabled: false,
   },
 ];
 
@@ -57,7 +61,7 @@ export default function LinkedMobileMoney() {
   const { currentUser, updateCurrentUser } = useAppData();
   const [selectedProvider, setSelectedProvider] = useState<
     NonNullable<SessionUser['provider']>
-  >(currentUser?.provider ?? 'mtn');
+  >(currentUser?.provider === 'mtn' ? currentUser.provider : 'mtn');
 
   const handleSave = () => {
     updateCurrentUser({ provider: selectedProvider });
@@ -82,7 +86,7 @@ export default function LinkedMobileMoney() {
         ]}
       >
         <Text style={styles.helper}>
-          Choose the mobile money account Chuma should use for deductions.
+          MTN Mobile Money is the only supported provider for now.
         </Text>
 
         <View style={styles.card}>
@@ -93,7 +97,12 @@ export default function LinkedMobileMoney() {
             return (
               <Pressable
                 key={provider.id}
-                style={[styles.providerRow, !isLast && styles.providerBorder]}
+                disabled={!provider.enabled}
+                style={[
+                  styles.providerRow,
+                  !isLast && styles.providerBorder,
+                  !provider.enabled && styles.providerRowDisabled,
+                ]}
                 onPress={() => setSelectedProvider(provider.id)}
               >
                 <View style={[styles.providerDot, { backgroundColor: provider.dotColor }]} />
@@ -105,6 +114,8 @@ export default function LinkedMobileMoney() {
                   <View style={styles.checkCircle}>
                     <Check size={16} color={colors.surface} strokeWidth={2.4} />
                   </View>
+                ) : !provider.enabled ? (
+                  <Text style={styles.unavailableText}>Soon</Text>
                 ) : null}
               </Pressable>
             );
@@ -127,7 +138,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
     paddingBottom: 24,
     backgroundColor: colors.surface,
@@ -173,6 +183,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  providerRowDisabled: {
+    opacity: 0.45,
+  },
   providerDot: {
     width: 48,
     height: 48,
@@ -201,6 +214,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
+    marginLeft: 12,
+  },
+  unavailableText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+    color: '#4A5565',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     marginLeft: 12,
   },
   saveButton: {

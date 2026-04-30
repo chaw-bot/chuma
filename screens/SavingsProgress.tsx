@@ -85,7 +85,7 @@ export default function SavingsProgress() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: topInset + 24 }]}>
+      <View style={[styles.header, { paddingTop: topInset + 20 }]}>
         <Text style={styles.title}>Goals</Text>
       </View>
 
@@ -191,9 +191,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingBottom: 26,
-    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 17,
+    marginBottom: 5,
   },
   title: {
     fontSize: 24,

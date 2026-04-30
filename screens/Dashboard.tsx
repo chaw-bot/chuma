@@ -76,29 +76,28 @@ export default function Dashboard() {
 
   return (
     <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: topInset + 20 }]}>
+        <View>
+          <Text style={styles.name}>Hi, {displayName}!</Text>
+        </View>
+
+        <Pressable
+          style={styles.avatarButton}
+          onPress={() => navigation.navigate('Profile')}
+        >
+          <Text style={styles.avatarText}>{avatarInitial}</Text>
+        </Pressable>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: topInset + 24,
+            paddingTop: topInset + 5,
             paddingBottom: insets.bottom + 104,
           },
         ]}
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Good morning</Text>
-            <Text style={styles.name}>{displayName}</Text>
-          </View>
-
-          <Pressable
-            style={styles.avatarButton}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Text style={styles.avatarText}>{avatarInitial}</Text>
-          </Pressable>
-        </View>
 
         <Pressable
           style={styles.totalCard}
@@ -241,8 +240,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 30,
-    paddingHorizontal: 7,
+    paddingHorizontal: 17,
+    marginBottom: 5,
   },
   greeting: {
     fontSize: 14,
@@ -313,7 +312,7 @@ const styles = StyleSheet.create({
     color: colors.surface,
   },
   sectionHeader: {
-    minHeight: 28,
+    minHeight: 25,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

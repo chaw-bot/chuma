@@ -430,8 +430,8 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   verifyContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
+    // flexGrow: 1,
+    // justifyContent: 'center',
   },
   backText: {
     color: colors.primary,

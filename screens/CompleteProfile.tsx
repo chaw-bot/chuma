@@ -24,9 +24,30 @@ type CompleteProfileNavigationProp = NativeStackNavigationProp<
 type CompleteProfileRouteProp = RouteProp<RootStackParamList, 'CompleteProfile'>;
 
 const providers = [
-  { id: 'mtn', label: 'MTN', badge: 'MTN', fill: '#FFCB05', textColor: '#004F71' },
-  { id: 'airtel', label: 'Airtel', badge: 'airtel', fill: '#FFFFFF', textColor: '#D71920' },
-  { id: 'zamtel', label: 'Zamtel', badge: 'Zamtel', fill: '#39B86C', textColor: '#FFFFFF' },
+  {
+    id: 'mtn',
+    label: 'MTN',
+    badge: 'MTN',
+    fill: '#FFCB05',
+    textColor: '#004F71',
+    enabled: true,
+  },
+  {
+    id: 'airtel',
+    label: 'Airtel',
+    badge: 'airtel',
+    fill: '#FFFFFF',
+    textColor: '#D71920',
+    enabled: false,
+  },
+  {
+    id: 'zamtel',
+    label: 'Zamtel',
+    badge: 'Zamtel',
+    fill: '#39B86C',
+    textColor: '#FFFFFF',
+    enabled: false,
+  },
 ] as const;
 
 export default function CompleteProfile() {
@@ -42,7 +63,7 @@ export default function CompleteProfile() {
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState<(typeof providers)[number]['id'] | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<(typeof providers)[number]['id']>('mtn');
 
   const canComplete = useMemo(
     () => fullName.trim().length > 1 && Boolean(selectedProvider),
@@ -71,13 +92,12 @@ export default function CompleteProfile() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: topInset + 14 }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+        {/* <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <ArrowLeft size={22} color={colors.text} />
-        </Pressable>
+        </Pressable> */}
 
         <View style={styles.headerCopy}>
           <Text style={styles.title}>Complete Your Profile</Text>
-          <Text style={styles.phoneText}>{phoneNumber}</Text>
         </View>
       </View>
 
@@ -115,7 +135,7 @@ export default function CompleteProfile() {
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Mobile Money Provider</Text>
-          <Text style={styles.helperText}>Select your primary mobile money account</Text>
+          <Text style={styles.helperText}>MTN Mobile Money is currently supported.</Text>
 
           <View style={styles.providerRow}>
             {providers.map((provider) => {
@@ -124,7 +144,12 @@ export default function CompleteProfile() {
               return (
                 <Pressable
                   key={provider.id}
-                  style={[styles.providerCard, selected && styles.providerCardSelected]}
+                  disabled={!provider.enabled}
+                  style={[
+                    styles.providerCard,
+                    selected && styles.providerCardSelected,
+                    !provider.enabled && styles.providerCardDisabled,
+                  ]}
                   onPress={() => setSelectedProvider(provider.id)}
                 >
                   <View style={[styles.providerBadge, { backgroundColor: provider.fill }]}>
@@ -132,6 +157,9 @@ export default function CompleteProfile() {
                       {provider.badge}
                     </Text>
                   </View>
+                  {!provider.enabled ? (
+                    <Text style={styles.comingSoonText}>Soon</Text>
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -171,14 +199,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
-  },
+  // backButton: {
+  //   width: 40,
+  //   height: 40,
+  //   borderRadius: 20,
+  //   alignItems: 'center',
+  //   justifyContent: 'center',
+  //   backgroundColor: colors.primarySoft,
+  // },
   headerCopy: {
     flex: 1,
   },
@@ -248,6 +276,11 @@ const styles = StyleSheet.create({
   providerCardSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primarySoft,
+    borderRadius: 24,
+    padding: 2,
+  },
+  providerCardDisabled: {
+    opacity: 0.45,
   },
   providerBadge: {
     width: '100%',
@@ -258,7 +291,7 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   providerBadgeText: {
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: '700',
   },
   providerLabel: {
@@ -266,6 +299,18 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: '#364153',
     fontWeight: '500',
+  },
+  comingSoonText: {
+    position: 'absolute',
+    bottom: 8,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+    color: '#4A5565',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   footer: {
     borderTopWidth: 1,

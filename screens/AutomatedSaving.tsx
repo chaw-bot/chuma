@@ -111,9 +111,7 @@ export default function AutomatedSavings() {
           <ArrowLeft size={24} color="#101828" strokeWidth={2.2} />
         </Pressable>
         <Text style={styles.title}>Add Deduction</Text>
-        <View style={styles.headerSpacer} />
       </View>
-
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -215,10 +213,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
     paddingBottom: 24,
-    marginBottom: 24,
     backgroundColor: colors.surface,
   },
   backButton: {

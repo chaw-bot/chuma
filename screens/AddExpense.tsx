@@ -215,10 +215,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
     paddingBottom: 24,
-    marginBottom: 24,
     backgroundColor: colors.surface,
   },
   backButton: {
