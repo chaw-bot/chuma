@@ -66,14 +66,13 @@ export default function AutomatedSavings() {
     return goals[0];
   }, [goals, params.goalName]);
 
-  const [selectedGoalId] = useState(initialGoal?.id ?? '');
   const [amount, setAmount] = useState('');
   const [frequency, setFrequency] = useState<AutoSaveFrequency>('weekly');
   const [startDate, setStartDate] = useState('');
   const [active, setActive] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const selectedGoal = goals.find((goal) => goal.id === selectedGoalId);
+  const selectedGoal = initialGoal;
   const displayGoalName = selectedGoal?.name ?? params.goalName ?? '';
   const parsedAmount = parseAmount(amount);
   const canSave = Boolean(displayGoalName && parsedAmount && frequency);
@@ -97,7 +96,7 @@ export default function AutomatedSavings() {
       timelineMonths,
       autoSaveAmount: parsedAmount,
       autoSaveFrequency: frequency,
-      autoSaveStartDate: startDate || 'Apr 15, 2026',
+      autoSaveStartDate: startDate || 'Tomorrow',
       color: colors.primary,
     });
 

@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Coins, Leaf } from 'lucide-react-native';
+import { useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { colors, radii, shadows } from '../theme/colors';
 
@@ -14,14 +15,18 @@ type SplashNavigationProp = NativeStackNavigationProp<
 
 export default function Splash() {
   const navigation = useNavigation<SplashNavigationProp>();
+  const { currentUser, isAuthReady } = useAppData();
+  const [timerDone, setTimerDone] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      navigation.replace('Onboarding');
-    }, 1800);
-
+    const timer = setTimeout(() => setTimerDone(true), 1800);
     return () => clearTimeout(timer);
-  }, [navigation]);
+  }, []);
+
+  useEffect(() => {
+    if (!timerDone || !isAuthReady) return;
+    navigation.replace(currentUser ? 'Dashboard' : 'Onboarding');
+  }, [timerDone, isAuthReady, currentUser, navigation]);
 
   return (
     <LinearGradient

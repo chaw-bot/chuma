@@ -15,10 +15,13 @@ import { ShieldCheck, Smartphone, ArrowRight, KeyRound } from 'lucide-react-nati
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import firebaseAuth from '../firebase';
 import { useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { normalizeZmPhone } from '../utils/auth';
-import { colors, radii, shadows } from '../theme/colors';
+import { colors, shadows } from '../theme/colors';
+
+type ConfirmationResult = Awaited<ReturnType<typeof firebaseAuth.signInWithPhoneNumber>>;
 
 type LoginNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -28,10 +31,13 @@ type LoginNavigationProp = NativeStackNavigationProp<
 export default function Login() {
   const navigation = useNavigation<LoginNavigationProp>();
   const insets = useSafeAreaInsets();
+  const { checkExistingUser, signInDemo } = useAppData();
   const codeInputRef = useRef<RNTextInput>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [verification, setVerification] = useState<{ phone: string; code: string } | null>(null);
+  const [verification, setVerification] =
+    useState<ConfirmationResult | null>(null);
+  const [verificationPhone, setVerificationPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [resendSeconds, setResendSeconds] = useState(0);
@@ -60,14 +66,48 @@ export default function Login() {
       return;
     }
 
-    const timer = setInterval(() => {
+    const timer = setTimeout(() => {
       setResendSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => clearTimeout(timer);
   }, [resendSeconds]);
 
-  const handleSendCode = async () => {
+  const formatAuthError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+
+    if (message.includes('auth/invalid-phone-number')) {
+      return 'Enter a valid Zambian phone number.';
+    }
+
+    if (message.includes('auth/too-many-requests')) {
+      return 'Too many attempts. Please wait a moment and try again.';
+    }
+
+    if (message.includes('auth/quota-exceeded')) {
+      return 'SMS quota has been reached for now. Please try again later.';
+    }
+
+    if (message.includes('auth/missing-client-identifier')) {
+      return 'Firebase phone auth needs this Android build to include the app signing keys.';
+    }
+
+    if (message.includes('auth/network-request-failed')) {
+      return 'Network error. Check your connection and try again.';
+    }
+
+    if (message.includes('auth/invalid-verification-code')) {
+      return 'That verification code is incorrect. Please try again.';
+    }
+
+    if (message.includes('auth/session-expired')) {
+      return 'That code has expired. Please request a new one.';
+    }
+
+    return 'Authentication failed. Please try again.';
+  };
+
+  const handleSendCode = async (forceResend = false) => {
     if (!canSendCode) {
       return;
     }
@@ -81,13 +121,16 @@ export default function Login() {
         return;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      const demoCode = normalizedPhone.slice(-6);
-      setVerification({ phone: e164Phone, code: demoCode });
+      const confirmation = await firebaseAuth.signInWithPhoneNumber(
+        e164Phone,
+        forceResend
+      );
+      setVerification(confirmation);
+      setVerificationPhone(e164Phone);
       setVerificationCode('');
       setResendSeconds(RESEND_WINDOW);
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : 'Authentication failed. Please try again.');
+      setErrorMessage(formatAuthError(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -102,17 +145,23 @@ export default function Login() {
     setErrorMessage('');
 
     try {
-      if (verificationCode.trim() !== verification.code) {
-        setErrorMessage('Incorrect code. Use the demo code shown below.');
-        return;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      navigation.navigate('CompleteProfile', {
-        phoneNumber: verification.phone,
-      });
+      await verification.confirm(verificationCode.trim());
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : 'Invalid code. Please try again.');
+      setErrorMessage(formatAuthError(error));
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const existingUser = await checkExistingUser();
+      if (existingUser) {
+        signInDemo(existingUser);
+        navigation.reset({ index: 0, routes: [{ name: 'Dashboard' }] });
+      } else {
+        navigation.navigate('CompleteProfile', { phoneNumber: verificationPhone });
+      }
+    } catch {
+      navigation.navigate('CompleteProfile', { phoneNumber: verificationPhone });
     } finally {
       setIsSubmitting(false);
     }
@@ -120,6 +169,7 @@ export default function Login() {
 
   const resetPhoneEntry = () => {
     setVerification(null);
+    setVerificationPhone('');
     setVerificationCode('');
     setErrorMessage('');
     setResendSeconds(0);
@@ -194,7 +244,7 @@ export default function Login() {
 
             <Pressable
               style={[styles.primaryButton, !canSendCode && styles.primaryButtonDisabled]}
-              onPress={handleSendCode}
+              onPress={() => handleSendCode()}
               disabled={!canSendCode}
             >
               {isSubmitting ? (
@@ -219,7 +269,7 @@ export default function Login() {
                 <KeyRound size={34} color={colors.surface} strokeWidth={2.2} />
               </View>
               <Text style={styles.brandTitle}>Verify Number</Text>
-              <Text style={styles.brandSubtitle}>Enter the code sent to {verification?.phone ?? e164Phone}</Text>
+              <Text style={styles.brandSubtitle}>Enter the code sent to {verificationPhone || e164Phone}</Text>
             </View>
 
             <Pressable
@@ -252,15 +302,13 @@ export default function Login() {
               style={styles.hiddenInput}
             />
 
-            <Text style={styles.demoCode}>Demo code: {verification?.code ?? '------'}</Text>
-
             <View style={styles.resendRow}>
               <Text style={styles.helperText}>
                 {resendSeconds > 0
                   ? `Resend in ${String(resendSeconds).padStart(2, '0')}s`
                   : 'Did not get a code?'}
               </Text>
-              <Pressable onPress={handleSendCode} disabled={!canResendCode}>
+              <Pressable onPress={() => handleSendCode(true)} disabled={!canResendCode}>
                 <Text style={[styles.resendLink, !canResendCode && styles.resendLinkDisabled]}>
                   Resend
                 </Text>
@@ -471,16 +519,6 @@ const styles = StyleSheet.create({
     opacity: 0,
     width: 1,
     height: 1,
-  },
-  demoCode: {
-    marginTop: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    color: colors.primary,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   resendRow: {
     marginTop: 16,
