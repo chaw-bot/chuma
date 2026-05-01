@@ -28,7 +28,7 @@ if (NativeModules.RNFBAppModule) {
   const auth = getAuth();
   firebaseAuth = {
     signInWithPhoneNumber: (phone, forceResend) =>
-      signInWithPhoneNumber(auth, phone, forceResend),
+      signInWithPhoneNumber(auth, phone, undefined, forceResend),
     signOut: () => signOut(auth),
   };
 }

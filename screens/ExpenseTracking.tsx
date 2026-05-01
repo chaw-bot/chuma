@@ -19,70 +19,62 @@ import Svg, { Circle, G } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ExpenseCategory, ExpenseItem, useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { colors } from '../theme/colors';
+import { isSameMonth } from '../utils/date';
 
 type ExpenseTrackingNav = NativeStackNavigationProp<
   RootStackParamList,
   'ExpenseTracking'
 >;
 
-const categories = [
-  { label: 'Food', percent: 35, color: colors.primary },
-  { label: 'Transport', percent: 20, color: '#22C55E' },
-  { label: 'Business Supplies', percent: 25, color: '#86EFAC' },
-  { label: 'Other', percent: 20, color: '#D1D5DC' },
-];
-
-const recentExpenses = [
-  {
-    id: 'groceries',
-    title: 'Groceries - Shoprite',
-    meta: 'Food • Apr 11',
-    amount: 'ZMW 250',
+const categoryStyle: Record<ExpenseCategory, {
+  icon: typeof Utensils;
+  iconBg: string;
+  iconColor: string;
+  color: string;
+}> = {
+  Food: {
     icon: Utensils,
     iconBg: '#DCFCE7',
     iconColor: colors.primary,
+    color: colors.primary,
   },
-  {
-    id: 'taxi',
-    title: 'Taxi fare',
-    meta: 'Transport • Apr 11',
-    amount: 'ZMW 30',
+  Transport: {
     icon: Car,
     iconBg: '#DBEAFE',
     iconColor: '#2563EB',
+    color: '#22C55E',
   },
-  {
-    id: 'stock',
-    title: 'Stock purchase',
-    meta: 'Business Supplies • Apr 10',
-    amount: 'ZMW 800',
+  Shopping: {
     icon: BriefcaseBusiness,
     iconBg: '#FEF3C7',
     iconColor: '#D97706',
+    color: '#86EFAC',
   },
-  {
-    id: 'restaurant',
-    title: 'Restaurant',
-    meta: 'Food • Apr 9',
-    amount: 'ZMW 120',
-    icon: Utensils,
-    iconBg: '#DCFCE7',
-    iconColor: colors.primary,
-  },
-  {
-    id: 'airtime',
-    title: 'Mobile airtime',
-    meta: 'Other • Apr 9',
-    amount: 'ZMW 50',
+  Other: {
     icon: MoreHorizontal,
     iconBg: '#F3F4F6',
     iconColor: '#4A5565',
+    color: '#D1D5DC',
   },
-];
+};
 
-function DonutChart() {
+function formatExpenseDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getMonthLabel(expenses: ExpenseItem[]) {
+  const sourceDate = expenses[0]?.createdAt ? new Date(expenses[0].createdAt) : new Date();
+  return sourceDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function DonutChart({
+  categories,
+}: {
+  categories: Array<{ label: ExpenseCategory; percent: number; color: string }>;
+}) {
   const size = 176;
   const strokeWidth = 28;
   const radius = (size - strokeWidth) / 2;
@@ -121,13 +113,32 @@ export default function ExpenseTracking() {
   const insets = useSafeAreaInsets();
   const fallbackTop = Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0;
   const topPadding = Math.max(insets.top, fallbackTop) + 24;
+  const { expenses } = useAppData();
+  const monthAnchor = expenses[0]?.createdAt ? new Date(expenses[0].createdAt) : new Date();
+  const monthlyExpenses = expenses.filter((expense) => isSameMonth(expense.createdAt, monthAnchor));
+  const monthlyTotal = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const categoryTotals = (Object.keys(categoryStyle) as ExpenseCategory[]).map((category) => {
+    const total = monthlyExpenses
+      .filter((expense) => expense.category === category)
+      .reduce((sum, expense) => sum + expense.amount, 0);
+
+    return {
+      label: category,
+      total,
+      percent: monthlyTotal ? Math.round((total / monthlyTotal) * 100) : 0,
+      color: categoryStyle[category].color,
+    };
+  }).filter((category) => category.total > 0);
+  const chartCategories = categoryTotals.length > 0
+    ? categoryTotals
+    : [{ label: 'Other' as ExpenseCategory, total: 1, percent: 100, color: '#D1D5DC' }];
 
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: topPadding }]}>
         <View>
           <Text style={styles.title}>Expenses</Text>
-          <Text style={styles.subtitle}>April 2026</Text>
+          <Text style={styles.subtitle}>{getMonthLabel(monthlyExpenses)}</Text>
         </View>
         <Pressable
           style={styles.addButton}
@@ -147,16 +158,16 @@ export default function ExpenseTracking() {
       >
         <View style={styles.totalCard}>
           <Text style={styles.totalLabel}>Monthly Total</Text>
-          <Text style={styles.totalAmount}>ZMW 3,450</Text>
+          <Text style={styles.totalAmount}>ZMW {monthlyTotal.toLocaleString()}</Text>
         </View>
 
         <View style={styles.categoryCard}>
           <Text style={styles.sectionTitle}>Spending by Category</Text>
           <View style={styles.chartWrap}>
-            <DonutChart />
+            <DonutChart categories={chartCategories} />
           </View>
           <View style={styles.legend}>
-            {categories.map((category) => (
+            {chartCategories.map((category) => (
               <View key={category.label} style={styles.legendRow}>
                 <View style={styles.legendLeft}>
                   <View
@@ -178,27 +189,36 @@ export default function ExpenseTracking() {
         </View>
 
         <View style={styles.recentList}>
-          {recentExpenses.map((expense) => {
-            const Icon = expense.icon;
+          {expenses.length > 0 ? (
+            expenses.map((expense) => {
+              const meta = categoryStyle[expense.category];
+              const Icon = meta.icon;
 
-            return (
-              <View key={expense.id} style={styles.expenseRow}>
-                <View
-                  style={[
-                    styles.expenseIcon,
-                    { backgroundColor: expense.iconBg },
-                  ]}
-                >
-                  <Icon size={20} color={expense.iconColor} strokeWidth={2.1} />
+              return (
+                <View key={expense.id} style={styles.expenseRow}>
+                  <View
+                    style={[
+                      styles.expenseIcon,
+                      { backgroundColor: meta.iconBg },
+                    ]}
+                  >
+                    <Icon size={20} color={meta.iconColor} strokeWidth={2.1} />
+                  </View>
+                  <View style={styles.expenseTextBlock}>
+                    <Text style={styles.expenseTitle}>
+                      {expense.description || expense.category}
+                    </Text>
+                    <Text style={styles.expenseMeta}>
+                      {expense.category} • {formatExpenseDate(expense.createdAt)}
+                    </Text>
+                  </View>
+                  <Text style={styles.expenseAmount}>ZMW {expense.amount.toLocaleString()}</Text>
                 </View>
-                <View style={styles.expenseTextBlock}>
-                  <Text style={styles.expenseTitle}>{expense.title}</Text>
-                  <Text style={styles.expenseMeta}>{expense.meta}</Text>
-                </View>
-                <Text style={styles.expenseAmount}>{expense.amount}</Text>
-              </View>
-            );
-          })}
+              );
+            })
+          ) : (
+            <Text style={styles.emptyText}>No expenses yet.</Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -320,6 +340,11 @@ const styles = StyleSheet.create({
   },
   recentList: {
     gap: 2,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
   },
   expenseRow: {
     minHeight: 76,

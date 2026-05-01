@@ -37,9 +37,12 @@ export default function Profile() {
   const fallbackTop = Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0;
   const topPadding = Math.max(insets.top, fallbackTop) + 24;
   const { currentUser, signOut } = useAppData();
-  const displayName = currentUser?.fullName ?? 'Chawanzi Banda';
-  const phoneNumber = currentUser?.phoneNumber ?? '+260 97 123 4567';
+  const displayName = currentUser?.fullName ?? 'Complete your profile';
+  const phoneNumber = currentUser?.phoneNumber ?? '';
   const initial = displayName.trim().charAt(0).toUpperCase() || 'C';
+  const providerLabel = currentUser?.provider === 'mtn'
+    ? 'MTN Mobile Money'
+    : 'No mobile money account linked';
 
   const handleLogout = () => {
     Alert.alert('Log out', 'Are you sure you want to log out?', [
@@ -93,7 +96,7 @@ export default function Profile() {
             </View>
             <View style={styles.identityText}>
               <Text style={styles.name}>{displayName}</Text>
-              <Text style={styles.phone}>{phoneNumber}</Text>
+              <Text style={styles.phone}>{phoneNumber || 'No phone number saved'}</Text>
             </View>
           </View>
 
@@ -102,8 +105,10 @@ export default function Profile() {
           <View style={styles.mobileMoneyRow}>
             <View style={styles.providerDot} />
             <View>
-              <Text style={styles.providerName}>MTN Mobile Money</Text>
-              <Text style={styles.providerStatus}>Linked Account</Text>
+              <Text style={styles.providerName}>{providerLabel}</Text>
+              <Text style={styles.providerStatus}>
+                {currentUser?.provider ? 'Linked Account' : 'Not linked'}
+              </Text>
             </View>
           </View>
         </View>

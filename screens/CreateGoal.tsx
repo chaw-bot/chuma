@@ -17,10 +17,24 @@ import { useAppData, AutoSaveFrequency } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { parseAmount, sanitizeAmountInput } from '../utils/auth';
 import { colors } from '../theme/colors';
+import DatePickerField, { formatPickerDate } from '../components/DatePickerField';
 
 type CreateGoalNavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateGoal'>;
 
 const frequencies: AutoSaveFrequency[] = ['daily', 'weekly', 'monthly'];
+
+const addMonths = (date: Date, months: number) => {
+  const nextDate = new Date(date);
+  nextDate.setMonth(nextDate.getMonth() + months);
+  return nextDate;
+};
+
+const getTimelineMonths = (startDate: Date, targetDate: Date) => {
+  const yearDiff = targetDate.getFullYear() - startDate.getFullYear();
+  const monthDiff = targetDate.getMonth() - startDate.getMonth();
+  const totalMonths = yearDiff * 12 + monthDiff;
+  return Math.max(1, totalMonths);
+};
 
 export default function CreateGoal() {
   const navigation = useNavigation<CreateGoalNavigationProp>();
@@ -33,13 +47,14 @@ export default function CreateGoal() {
 
   const [goalName, setGoalName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [targetDate, setTargetDate] = useState('');
+  const [startDate, setStartDate] = useState(() => new Date());
+  const [targetDate, setTargetDate] = useState(() => addMonths(new Date(), 6));
   const [frequency, setFrequency] = useState<AutoSaveFrequency>('weekly');
   const [initialDeposit, setInitialDeposit] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   const parsedTargetAmount = useMemo(() => parseAmount(targetAmount), [targetAmount]);
+  const parsedInitialDeposit = useMemo(() => parseAmount(initialDeposit), [initialDeposit]);
   const canCreate = goalName.trim().length > 0 && Boolean(parsedTargetAmount);
 
   const handleCreateGoal = () => {
@@ -52,9 +67,10 @@ export default function CreateGoal() {
       name: goalName.trim(),
       category: 'business',
       targetAmount: parsedTargetAmount,
-      timelineMonths: 6,
+      currentAmount: Math.min(parsedInitialDeposit ?? 0, parsedTargetAmount),
+      timelineMonths: getTimelineMonths(startDate, targetDate),
       autoSaveFrequency: frequency,
-      autoSaveStartDate: startDate.trim() || 'Tomorrow',
+      autoSaveStartDate: formatPickerDate(startDate),
       color: colors.primary,
     });
 
@@ -103,21 +119,30 @@ export default function CreateGoal() {
         <View style={styles.dateRow}>
           <View style={styles.dateField}>
             <FieldLabel text="Start Date" />
-            <TextInput
+            <DatePickerField
               value={startDate}
-              onChangeText={setStartDate}
-              placeholder=""
-              style={styles.input}
+              minimumDate={new Date()}
+              onChange={(selectedDate) => {
+                setStartDate(selectedDate);
+                if (selectedDate > targetDate) {
+                  setTargetDate(addMonths(selectedDate, 1));
+                }
+              }}
+              fieldStyle={styles.dateInput}
+              textStyle={styles.dateText}
+              iconSize={18}
             />
           </View>
 
           <View style={styles.dateField}>
             <FieldLabel text="Target Date" />
-            <TextInput
+            <DatePickerField
               value={targetDate}
-              onChangeText={setTargetDate}
-              placeholder=""
-              style={styles.input}
+              minimumDate={startDate}
+              onChange={setTargetDate}
+              fieldStyle={styles.dateInput}
+              textStyle={styles.dateText}
+              iconSize={18}
             />
           </View>
         </View>
@@ -228,6 +253,21 @@ const styles = StyleSheet.create({
   },
   dateField: {
     flex: 1,
+  },
+  dateInput: {
+    height: 49,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    marginBottom: 20,
+  },
+  dateText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.text,
   },
   frequencyRow: {
     flexDirection: 'row',

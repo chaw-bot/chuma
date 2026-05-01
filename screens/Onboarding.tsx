@@ -36,7 +36,7 @@ const onboardingSlides = [
     id: 'deductions',
     title: 'Automated\ndeductions',
     accent: 'Save without thinking',
-    description: 'Automatic deductions from MTN MoMo, Airtel Money, or Zamtel Kwacha',
+    description: 'Automatic deductions from MTN Mobile Money',
     buttonLabel: 'Get Started',
     icon: Smartphone,
     iconSize: 56,

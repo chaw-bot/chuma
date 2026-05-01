@@ -31,31 +31,6 @@ type GoalListItem = {
   category?: SavingsGoal['category'];
 };
 
-const staticGoals: GoalListItem[] = [
-  {
-    id: 'new-phone',
-    name: 'New Phone',
-    currentAmount: 1500,
-    targetAmount: 1500,
-    status: 'Completed',
-    accent: '#00A63E',
-  },
-  {
-    id: 'wedding-savings',
-    name: 'Wedding Savings',
-    currentAmount: 800,
-    targetAmount: 10000,
-    status: 'Paused',
-    accent: '#FE9A00',
-  },
-];
-
-const goalOrder = [
-  'goal-school-fees',
-  'goal-business-stock',
-  'goal-emergency-fund',
-];
-
 export default function SavingsProgress() {
   const navigation = useNavigation<SavingsNavigationProp>();
   const insets = useSafeAreaInsets();
@@ -65,23 +40,15 @@ export default function SavingsProgress() {
   );
   const { goals } = useAppData();
 
-  const appGoals: GoalListItem[] = [...goals]
-    .sort((a, b) => {
-      const aIndex = goalOrder.indexOf(a.id);
-      const bIndex = goalOrder.indexOf(b.id);
-      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
-    })
-    .map((goal) => ({
+  const appGoals: GoalListItem[] = goals.map((goal) => ({
       id: goal.id,
       name: goal.name,
       currentAmount: goal.currentAmount,
       targetAmount: goal.targetAmount,
-      status: 'Active',
+      status: goal.currentAmount >= goal.targetAmount ? 'Completed' : 'Active',
       accent: colors.primary,
       category: goal.category,
     }));
-
-  const goalItems = [...appGoals, ...staticGoals];
 
   return (
     <View style={styles.container}>
@@ -99,21 +66,26 @@ export default function SavingsProgress() {
         ]}
       >
         <View style={styles.goalList}>
-          {goalItems.map((goal) => (
-            <GoalCard
-              key={goal.id}
-              goal={goal}
-              onPress={() => {
-                if (goal.category) {
-                  navigation.navigate('AutomatedSavings', {
-                    goalName: goal.name,
-                    targetAmount: String(goal.targetAmount),
-                    category: goal.category,
-                  });
-                }
-              }}
-            />
-          ))}
+          {appGoals.length > 0 ? (
+            appGoals.map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                onPress={() => {
+                  if (goal.category) {
+                    navigation.navigate('AutomatedSavings', {
+                      goalId: goal.id,
+                      goalName: goal.name,
+                      targetAmount: String(goal.targetAmount),
+                      category: goal.category,
+                    });
+                  }
+                }}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No goals yet. Create one to get started.</Text>
+          )}
         </View>
       </ScrollView>
 
@@ -206,6 +178,11 @@ const styles = StyleSheet.create({
   },
   goalList: {
     gap: 12,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
   },
   goalCard: {
     minHeight: 139,

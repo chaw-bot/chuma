@@ -11,7 +11,6 @@ import {
 import {
   ArrowDownLeft,
   ArrowRight,
-  ArrowUpRight,
   Bell,
   Target,
 } from 'lucide-react-native';
@@ -27,35 +26,10 @@ type DashboardNavigationProp = NativeStackNavigationProp<
   'Dashboard'
 >;
 
-const dueDateLabels: Record<string, string> = {
-  'goal-school-fees': 'Due Dec 2025',
-  'goal-business-stock': 'Due Nov 2025',
-  'goal-emergency-fund': 'Due Jan 2026',
-};
-
-const recentActivity = [
-  {
-    id: 'school-fees',
-    title: 'Auto Save - School Fees',
-    date: 'Apr 10',
-    amount: '+ZMW 50',
-    type: 'deposit',
-  },
-  {
-    id: 'withdrawal',
-    title: 'Withdrawal',
-    date: 'Apr 9',
-    amount: 'ZMW 200',
-    type: 'withdrawal',
-  },
-  {
-    id: 'business-stock',
-    title: 'Auto Save - Business Stock',
-    date: 'Apr 8',
-    amount: '+ZMW 100',
-    type: 'deposit',
-  },
-] as const;
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 export default function Dashboard() {
   const navigation = useNavigation<DashboardNavigationProp>();
@@ -64,21 +38,20 @@ export default function Dashboard() {
     insets.top,
     Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
   );
-  const { currentUser, goals } = useAppData();
-  const figmaGoals = goals.filter((goal) =>
-    ['goal-school-fees', 'goal-business-stock'].includes(goal.id)
-  );
-  const visibleGoals = figmaGoals.length >= 2 ? figmaGoals : goals.slice(0, 2);
+  const { currentUser, goals, expenses } = useAppData();
+
+  const visibleGoals = goals.slice(0, 2);
   const totalSavings = goals.reduce((sum, goal) => sum + goal.currentAmount, 0);
   const autoSaveGoal = goals.find((goal) => goal.autoSaveAmount && goal.autoSaveFrequency);
-  const displayName = currentUser?.fullName?.split(' ')[0] ?? 'Chawanzi';
-  const avatarInitial = displayName.charAt(0).toUpperCase();
+  const recentExpenses = expenses.slice(0, 3);
+  const displayName = currentUser?.fullName?.split(' ')[0] ?? '';
+  const avatarInitial = displayName.charAt(0).toUpperCase() || '?';
 
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: topInset + 20 }]}>
         <View>
-          <Text style={styles.name}>Hi, {displayName}!</Text>
+          <Text style={styles.name}>{displayName ? `Hi, ${displayName}!` : 'Welcome!'}</Text>
         </View>
 
         <Pressable
@@ -114,7 +87,7 @@ export default function Dashboard() {
             <View style={styles.totalStat}>
               <Text style={styles.totalStatLabel}>Next Deduction</Text>
               <Text style={styles.totalStatValue}>
-                {autoSaveGoal ? '3 days' : 'Set plan'}
+                {autoSaveGoal ? autoSaveGoal.autoSaveStartDate ?? 'Scheduled' : 'Set plan'}
               </Text>
             </View>
           </View>
@@ -132,13 +105,17 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.goalList}>
-          {visibleGoals.map((goal) => (
-            <GoalCard
-              key={goal.id}
-              goal={goal}
-              onPress={() => navigation.navigate('SavingsProgress', { goalId: goal.id })}
-            />
-          ))}
+          {visibleGoals.length > 0 ? (
+            visibleGoals.map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                onPress={() => navigation.navigate('SavingsProgress', { goalId: goal.id })}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No goals yet. Create one to get started.</Text>
+          )}
         </View>
 
         <View style={styles.sectionHeader}>
@@ -149,41 +126,24 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.recentList}>
-          {recentActivity.map((activity) => {
-            const isDeposit = activity.type === 'deposit';
-            const ActivityIcon = isDeposit ? ArrowDownLeft : ArrowUpRight;
-
-            return (
-              <View key={activity.id} style={styles.activityRow}>
-                <View
-                  style={[
-                    styles.activityIcon,
-                    isDeposit ? styles.depositIcon : styles.withdrawalIcon,
-                  ]}
-                >
-                  <ActivityIcon
-                    size={16}
-                    color={isDeposit ? '#00A63E' : '#E7000B'}
-                    strokeWidth={2.2}
-                  />
+          {recentExpenses.length > 0 ? (
+            recentExpenses.map((expense) => (
+              <View key={expense.id} style={styles.activityRow}>
+                <View style={[styles.activityIcon, styles.depositIcon]}>
+                  <ArrowDownLeft size={16} color="#00A63E" strokeWidth={2.2} />
                 </View>
-
                 <View style={styles.activityCopy}>
-                  <Text style={styles.activityTitle}>{activity.title}</Text>
-                  <Text style={styles.activityDate}>{activity.date}</Text>
+                  <Text style={styles.activityTitle}>{expense.category}</Text>
+                  <Text style={styles.activityDate}>{formatDate(expense.createdAt)}</Text>
                 </View>
-
-                <Text
-                  style={[
-                    styles.activityAmount,
-                    isDeposit ? styles.depositAmount : styles.withdrawalAmount,
-                  ]}
-                >
-                  {activity.amount}
+                <Text style={[styles.activityAmount, styles.withdrawalAmount]}>
+                  ZMW {expense.amount.toLocaleString()}
                 </Text>
               </View>
-            );
-          })}
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No recent activity.</Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -201,6 +161,9 @@ function GoalCard({
     ? Math.min(goal.currentAmount / goal.targetAmount, 1)
     : 0;
   const progressPercent = Math.round(progress * 100);
+  const timelineLabel = goal.timelineMonths
+    ? `${goal.timelineMonths} month${goal.timelineMonths === 1 ? '' : 's'} left`
+    : '';
 
   return (
     <Pressable style={styles.goalCard} onPress={onPress}>
@@ -211,7 +174,7 @@ function GoalCard({
           </View>
           <View>
             <Text style={styles.goalName}>{goal.name}</Text>
-            <Text style={styles.goalDue}>{dueDateLabels[goal.id] ?? 'Due Dec 2025'}</Text>
+            <Text style={styles.goalDue}>{timelineLabel}</Text>
           </View>
         </View>
         <Text style={styles.goalPercent}>{progressPercent}%</Text>
@@ -242,12 +205,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 17,
     marginBottom: 5,
-  },
-  greeting: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textMuted,
-    marginBottom: 2,
   },
   name: {
     fontSize: 24,
@@ -445,5 +402,11 @@ const styles = StyleSheet.create({
   },
   withdrawalAmount: {
     color: '#E7000B',
+  },
+  emptyText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textMuted,
+    paddingVertical: 8,
   },
 });

@@ -26,6 +26,7 @@ import { ExpenseCategory, useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { parseAmount, sanitizeAmountInput } from '../utils/auth';
 import { colors } from '../theme/colors';
+import DatePickerField from '../components/DatePickerField';
 
 type AddExpenseNav = NativeStackNavigationProp<RootStackParamList, 'AddExpense'>;
 
@@ -92,7 +93,7 @@ export default function AddExpense() {
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<UiCategory | null>(null);
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState('');
+  const [expenseDate, setExpenseDate] = useState(() => new Date());
   const [errorMessage, setErrorMessage] = useState('');
   const parsedAmount = parseAmount(amount);
   const canSave = Boolean(parsedAmount && selectedCategory);
@@ -106,6 +107,8 @@ export default function AddExpense() {
     addExpense({
       amount: parsedAmount,
       category: selectedCategory.expenseCategory,
+      description: description.trim() || selectedCategory.label,
+      createdAt: expenseDate.toISOString(),
     });
     navigation.navigate('ExpenseTracking');
   };
@@ -180,12 +183,14 @@ export default function AddExpense() {
         />
 
         <Text style={styles.label}>Date</Text>
-        <TextInput
-          value={date}
-          onChangeText={setDate}
-          placeholder=""
-          placeholderTextColor="#99A1AF"
-          style={styles.input}
+        <DatePickerField
+          value={expenseDate}
+          maximumDate={new Date()}
+          onChange={(selectedDate) => {
+            setExpenseDate(selectedDate);
+            setErrorMessage('');
+          }}
+          fieldStyle={styles.dateField}
         />
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -314,6 +319,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     color: '#101828',
+    marginBottom: 24,
+  },
+  dateField: {
     marginBottom: 24,
   },
   errorText: {

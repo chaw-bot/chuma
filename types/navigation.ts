@@ -11,6 +11,7 @@ export type RootStackParamList = {
   CreateGoal: undefined;
   AutomatedSavings:
     | {
+        goalId?: string;
         goalName?: string;
         targetAmount?: string;
         timeline?: string;

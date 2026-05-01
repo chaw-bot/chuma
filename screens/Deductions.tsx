@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   Platform,
   Pressable,
@@ -12,54 +12,11 @@ import { CalendarDays, Plus, Target } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SavingsGoal, useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { colors } from '../theme/colors';
 
 type DeductionsNav = NativeStackNavigationProp<RootStackParamList, 'Deductions'>;
-
-type DeductionItem = {
-  id: string;
-  title: string;
-  amount: string;
-  frequency: string;
-  nextRun: string;
-  active: boolean;
-};
-
-const deductionItems: DeductionItem[] = [
-  {
-    id: 'school-fees',
-    title: 'School Fees',
-    amount: 'ZMW 50',
-    frequency: 'Weekly',
-    nextRun: 'Apr 15, 2026',
-    active: true,
-  },
-  {
-    id: 'business-stock',
-    title: 'Business Stock',
-    amount: 'ZMW 100',
-    frequency: 'Monthly',
-    nextRun: 'Apr 20, 2026',
-    active: true,
-  },
-  {
-    id: 'emergency-fund',
-    title: 'Emergency Fund',
-    amount: 'ZMW 20',
-    frequency: 'Daily',
-    nextRun: 'Apr 13, 2026',
-    active: true,
-  },
-  {
-    id: 'wedding-savings',
-    title: 'Wedding Savings',
-    amount: 'ZMW 200',
-    frequency: 'Monthly',
-    nextRun: 'May 1, 2026',
-    active: false,
-  },
-];
 
 function Toggle({ active, onPress }: { active: boolean; onPress: () => void }) {
   return (
@@ -79,19 +36,27 @@ export default function Deductions() {
   const insets = useSafeAreaInsets();
   const fallbackTop = Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0;
   const topPadding = Math.max(insets.top, fallbackTop) + 24;
-  const [items, setItems] = useState(deductionItems);
+  const { goals, updateGoal } = useAppData();
 
-  const activeCount = useMemo(
-    () => items.filter((item) => item.active).length,
-    [items]
+  const deductions = useMemo(
+    () =>
+      goals
+        .filter((goal) => Boolean(goal.autoSaveAmount && goal.autoSaveFrequency))
+        .sort((a, b) =>
+          (b.autoSaveCreatedAt ?? b.createdAt ?? '').localeCompare(
+            a.autoSaveCreatedAt ?? a.createdAt ?? ''
+          )
+        ),
+    [goals]
   );
 
-  const toggleDeduction = (id: string) => {
-    setItems((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, active: !item.active } : item
-      )
-    );
+  const activeCount = useMemo(
+    () => deductions.filter((item) => item.autoSaveActive !== false).length,
+    [deductions]
+  );
+
+  const toggleDeduction = (goal: SavingsGoal) => {
+    updateGoal(goal.id, { autoSaveActive: goal.autoSaveActive === false });
   };
 
   return (
@@ -117,49 +82,62 @@ export default function Deductions() {
         <Text style={styles.summary}>{activeCount} active automatic deductions</Text>
 
         <View style={styles.list}>
-          {items.map((item) => (
-            <View key={item.id} style={styles.card}>
-              <View style={styles.cardTop}>
-                <View style={styles.iconCircle}>
-                  <Target size={24} color={colors.surface} strokeWidth={2.2} />
-                </View>
-                <View style={styles.cardTitleBlock}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.cardMeta}>
-                    {item.amount} • {item.frequency}
-                  </Text>
-                </View>
-                <Toggle active={item.active} onPress={() => toggleDeduction(item.id)} />
-              </View>
+          {deductions.length > 0 ? (
+            deductions.map((item) => {
+              const active = item.autoSaveActive !== false;
+              const frequency = item.autoSaveFrequency
+                ? item.autoSaveFrequency.charAt(0).toUpperCase() + item.autoSaveFrequency.slice(1)
+                : 'Scheduled';
 
-              <View style={styles.divider} />
+              return (
+                <View key={item.id} style={styles.card}>
+                  <View style={styles.cardTop}>
+                    <View style={styles.iconCircle}>
+                      <Target size={24} color={colors.surface} strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.cardTitleBlock}>
+                      <Text style={styles.cardTitle}>{item.name}</Text>
+                      <Text style={styles.cardMeta}>
+                        ZMW {item.autoSaveAmount?.toLocaleString()} • {frequency}
+                      </Text>
+                    </View>
+                    <Toggle active={active} onPress={() => toggleDeduction(item)} />
+                  </View>
 
-              <View style={styles.cardBottom}>
-                <View style={styles.nextRun}>
-                  <CalendarDays size={16} color="#4A5565" strokeWidth={2} />
-                  <Text style={styles.nextRunText}>Next Run</Text>
-                </View>
-                <View style={styles.bottomRight}>
-                  <Text style={styles.nextRunDate}>{item.nextRun}</Text>
-                  <View
-                    style={[
-                      styles.statusPill,
-                      item.active ? styles.activePill : styles.pausedPill,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusText,
-                        item.active ? styles.activeText : styles.pausedText,
-                      ]}
-                    >
-                      {item.active ? 'Active' : 'Paused'}
-                    </Text>
+                  <View style={styles.divider} />
+
+                  <View style={styles.cardBottom}>
+                    <View style={styles.nextRun}>
+                      <CalendarDays size={16} color="#4A5565" strokeWidth={2} />
+                      <Text style={styles.nextRunText}>Next Run</Text>
+                    </View>
+                    <View style={styles.bottomRight}>
+                      <Text style={styles.nextRunDate}>
+                        {item.autoSaveStartDate ?? 'Scheduled'}
+                      </Text>
+                      <View
+                        style={[
+                          styles.statusPill,
+                          active ? styles.activePill : styles.pausedPill,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusText,
+                            active ? styles.activeText : styles.pausedText,
+                          ]}
+                        >
+                          {active ? 'Active' : 'Paused'}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
-              </View>
-            </View>
-          ))}
+              );
+            })
+          ) : (
+            <Text style={styles.emptyText}>No automatic deductions yet.</Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -208,6 +186,11 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 16,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
   },
   card: {
     backgroundColor: '#F8FAFB',

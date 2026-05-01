@@ -12,6 +12,7 @@ import { Shield, Clock, TrendingUp, Info } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { InvestmentOption, useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { colors, radii, shadows } from '../theme/colors';
 
@@ -28,35 +29,7 @@ export default function InvestmentInsights() {
     Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
   );
 
-  const investments = [
-    {
-      id: 1,
-      name: 'Treasury Bills',
-      risk: 'Very Low',
-      returns: '12-15% per year',
-      minAmount: 500,
-      description: 'Safe government bonds with steady returns.',
-      icon: Shield,
-    },
-    {
-      id: 2,
-      name: 'Fixed Deposit',
-      risk: 'Low',
-      returns: '10-12% per year',
-      minAmount: 200,
-      description: 'Lock your money for a period and earn guaranteed interest.',
-      icon: Clock,
-    },
-    {
-      id: 3,
-      name: 'Money Market Fund',
-      risk: 'Low',
-      returns: '8-10% per year',
-      minAmount: 100,
-      description: 'A more flexible option with easier access to cash.',
-      icon: TrendingUp,
-    },
-  ];
+  const { investments } = useAppData();
 
   return (
     <View style={styles.screen}>
@@ -87,8 +60,8 @@ export default function InvestmentInsights() {
           </View>
         </View>
 
-        {investments.map((inv) => {
-          const Icon = inv.icon;
+        {investments.length > 0 ? investments.map((inv) => {
+          const Icon = getInvestmentIcon(inv);
           return (
             <View key={inv.id} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -112,7 +85,9 @@ export default function InvestmentInsights() {
               </Pressable>
             </View>
           );
-        })}
+        }) : (
+          <Text style={styles.emptyText}>No investment options available yet.</Text>
+        )}
 
         <View style={styles.comparisonCard}>
           <Text style={styles.comparisonTitle}>Simple comparison</Text>
@@ -138,6 +113,18 @@ export default function InvestmentInsights() {
       </ScrollView>
     </View>
   );
+}
+
+function getInvestmentIcon(investment: InvestmentOption) {
+  if (investment.name.toLowerCase().includes('treasury')) {
+    return Shield;
+  }
+
+  if (investment.name.toLowerCase().includes('fixed')) {
+    return Clock;
+  }
+
+  return TrendingUp;
 }
 
 function StatRow({ label, value }: { label: string; value: string }) {
@@ -205,6 +192,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.card,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
   },
   cardHeader: {
     flexDirection: 'row',

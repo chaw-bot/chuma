@@ -27,7 +27,7 @@ export default function EditProfile() {
     Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
   );
   const { currentUser, updateCurrentUser } = useAppData();
-  const [fullName, setFullName] = useState(currentUser?.fullName ?? 'Chawanzi Banda');
+  const [fullName, setFullName] = useState(currentUser?.fullName ?? '');
   const [email, setEmail] = useState(currentUser?.email ?? '');
   const [phoneNumber, setPhoneNumber] = useState(
     currentUser?.phoneNumber ?? '+260 97 123 4567'

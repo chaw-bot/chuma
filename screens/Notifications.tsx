@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Platform,
   StatusBar as NativeStatusBar,
@@ -13,6 +13,7 @@ import { CheckCircle, Calendar, TrendingUp, Gift } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NotificationItem, useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { colors, radii, shadows } from '../theme/colors';
 
@@ -29,40 +30,11 @@ export default function Notifications() {
     Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
   );
 
-  const notifications = [
-    {
-      id: 1,
-      icon: CheckCircle,
-      title: 'Auto-save successful',
-      message: 'K 15 saved to Emergency Fund',
-      time: '2 hours ago',
-    },
-    {
-      id: 2,
-      icon: Calendar,
-      title: 'Next deduction tomorrow',
-      message: 'K 15 will be saved from your mobile money',
-      time: '5 hours ago',
-    },
-    {
-      id: 3,
-      icon: TrendingUp,
-      title: 'Milestone reached',
-      message: 'You reached K 2,500 in Emergency Fund',
-      time: '1 day ago',
-    },
-    {
-      id: 4,
-      icon: Gift,
-      title: 'Savings tip',
-      message: 'Try saving your small change daily. It adds up fast.',
-      time: '2 days ago',
-    },
-  ];
-
-  const [remindersEnabled, setRemindersEnabled] = useState(true);
-  const [milestonesEnabled, setMilestonesEnabled] = useState(true);
-  const [tipsEnabled, setTipsEnabled] = useState(true);
+  const {
+    notifications,
+    notificationPreferences,
+    updateNotificationPreferences,
+  } = useAppData();
 
   return (
     <View style={styles.screen}>
@@ -89,8 +61,8 @@ export default function Notifications() {
           { paddingBottom: insets.bottom + 120 },
         ]}
       >
-        {notifications.map((notif) => {
-          const Icon = notif.icon;
+        {notifications.length > 0 ? notifications.map((notif) => {
+          const Icon = getNotificationIcon(notif);
           return (
             <View key={notif.id} style={styles.card}>
               <View style={styles.cardRow}>
@@ -100,12 +72,14 @@ export default function Notifications() {
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.cardTitle}>{notif.title}</Text>
                   <Text style={styles.cardMessage}>{notif.message}</Text>
-                  <Text style={styles.cardTime}>{notif.time}</Text>
+                  <Text style={styles.cardTime}>{formatNotificationDate(notif.createdAt)}</Text>
                 </View>
               </View>
             </View>
           );
-        })}
+        }) : (
+          <Text style={styles.emptyText}>No notifications yet.</Text>
+        )}
 
         <View style={styles.settingsCard}>
           <Text style={styles.settingsTitle}>Preferences</Text>
@@ -113,25 +87,48 @@ export default function Notifications() {
           <SettingRow
             label="Savings reminders"
             description="Get notified before deductions"
-            value={remindersEnabled}
-            onChange={setRemindersEnabled}
+            value={notificationPreferences.deductions}
+            onChange={(value) => updateNotificationPreferences({ deductions: value })}
           />
           <SettingRow
             label="Milestone celebrations"
             description="Celebrate your progress"
-            value={milestonesEnabled}
-            onChange={setMilestonesEnabled}
+            value={notificationPreferences.milestones}
+            onChange={(value) => updateNotificationPreferences({ milestones: value })}
           />
           <SettingRow
             label="Savings tips"
             description="Receive weekly money tips"
-            value={tipsEnabled}
-            onChange={setTipsEnabled}
+            value={notificationPreferences.tips}
+            onChange={(value) => updateNotificationPreferences({ tips: value })}
           />
         </View>
       </ScrollView>
     </View>
   );
+}
+
+function getNotificationIcon(notification: NotificationItem) {
+  if (notification.type === 'deduction') {
+    return Calendar;
+  }
+
+  if (notification.type === 'goal') {
+    return TrendingUp;
+  }
+
+  if (notification.type === 'expense') {
+    return CheckCircle;
+  }
+
+  return Gift;
+}
+
+function formatNotificationDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 function SettingRow({
@@ -234,6 +231,11 @@ const styles = StyleSheet.create({
   cardTime: {
     fontSize: 11,
     color: colors.textSubtle,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
   },
   settingsCard: {
     backgroundColor: colors.surface,

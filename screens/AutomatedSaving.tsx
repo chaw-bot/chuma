@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -15,12 +15,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AutoSaveFrequency,
-  GoalCategory,
   useAppData,
 } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { parseAmount, sanitizeAmountInput } from '../utils/auth';
 import { colors } from '../theme/colors';
+import DatePickerField, { formatPickerDate } from '../components/DatePickerField';
 
 type AutomatedSavingsNav = NativeStackNavigationProp<
   RootStackParamList,
@@ -53,10 +53,14 @@ export default function AutomatedSavings() {
   const insets = useSafeAreaInsets();
   const fallbackTop = Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0;
   const topPadding = Math.max(insets.top, fallbackTop) + 12;
-  const { goals, addGoal } = useAppData();
+  const { goals, updateGoal } = useAppData();
   const params = route.params ?? {};
 
   const initialGoal = useMemo(() => {
+    if (params.goalId) {
+      return goals.find((goal) => goal.id === params.goalId);
+    }
+
     if (params.goalName) {
       return goals.find(
         (goal) => goal.name.toLowerCase() === params.goalName?.toLowerCase()
@@ -66,38 +70,37 @@ export default function AutomatedSavings() {
     return goals[0];
   }, [goals, params.goalName]);
 
+  const [selectedGoalId, setSelectedGoalId] = useState(initialGoal?.id ?? '');
+  const [showGoalOptions, setShowGoalOptions] = useState(false);
   const [amount, setAmount] = useState('');
   const [frequency, setFrequency] = useState<AutoSaveFrequency>('weekly');
-  const [startDate, setStartDate] = useState('');
+  const [startDate, setStartDate] = useState(() => new Date());
   const [active, setActive] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const selectedGoal = initialGoal;
-  const displayGoalName = selectedGoal?.name ?? params.goalName ?? '';
+  const selectedGoal = goals.find((goal) => goal.id === selectedGoalId) ?? initialGoal;
+  const displayGoalName = selectedGoal?.name ?? '';
   const parsedAmount = parseAmount(amount);
   const canSave = Boolean(displayGoalName && parsedAmount && frequency);
 
+  useEffect(() => {
+    if (!selectedGoalId && initialGoal?.id) {
+      setSelectedGoalId(initialGoal.id);
+    }
+  }, [initialGoal?.id, selectedGoalId]);
+
   const handleSave = () => {
-    if (!parsedAmount || !displayGoalName) {
+    if (!parsedAmount || !selectedGoal) {
       setErrorMessage('Choose a goal and enter a valid amount.');
       return;
     }
 
-    const category = selectedGoal?.category ?? params.category ?? 'education';
-    const targetAmount =
-      selectedGoal?.targetAmount ?? parseAmount(params.targetAmount ?? '') ?? 0;
-    const timelineMonths =
-      selectedGoal?.timelineMonths ?? (Number(params.timeline ?? 1) || 1);
-
-    addGoal({
-      name: displayGoalName,
-      category: category as GoalCategory,
-      targetAmount,
-      timelineMonths,
+    updateGoal(selectedGoal.id, {
       autoSaveAmount: parsedAmount,
       autoSaveFrequency: frequency,
-      autoSaveStartDate: startDate || 'Tomorrow',
-      color: colors.primary,
+      autoSaveStartDate: formatPickerDate(startDate),
+      autoSaveActive: active,
+      autoSaveCreatedAt: new Date().toISOString(),
     });
 
     navigation.navigate('Deductions');
@@ -126,12 +129,59 @@ export default function AutomatedSavings() {
         </View>
 
         <Text style={styles.label}>Select Goal</Text>
-        <Pressable style={styles.selectField}>
+        <Pressable
+          style={styles.selectField}
+          onPress={() => setShowGoalOptions((current) => !current)}
+        >
           <Text style={[styles.selectText, !displayGoalName && styles.placeholder]}>
-            {displayGoalName}
+            {displayGoalName || 'Choose a goal'}
           </Text>
           <ChevronDown size={20} color="#4A5565" strokeWidth={2} />
         </Pressable>
+
+        {showGoalOptions ? (
+          <View style={styles.goalOptions}>
+            {goals.length > 0 ? (
+              goals.map((goal) => {
+                const selected = goal.id === selectedGoal?.id;
+
+                return (
+                  <Pressable
+                    key={goal.id}
+                    style={[styles.goalOption, selected && styles.goalOptionSelected]}
+                    onPress={() => {
+                      setSelectedGoalId(goal.id);
+                      setShowGoalOptions(false);
+                      setErrorMessage('');
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.goalOptionTitle,
+                        selected && styles.goalOptionTitleSelected,
+                      ]}
+                    >
+                      {goal.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.goalOptionMeta,
+                        selected && styles.goalOptionMetaSelected,
+                      ]}
+                    >
+                      ZMW {goal.currentAmount.toLocaleString()} of{' '}
+                      {goal.targetAmount.toLocaleString()}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            ) : (
+              <Text style={styles.emptyGoalText}>
+                Create a goal before adding a deduction.
+              </Text>
+            )}
+          </View>
+        ) : null}
 
         <Text style={styles.label}>Amount per Deduction (ZMW)</Text>
         <TextInput
@@ -172,12 +222,14 @@ export default function AutomatedSavings() {
         </View>
 
         <Text style={styles.label}>Start Date</Text>
-        <TextInput
+        <DatePickerField
           value={startDate}
-          onChangeText={setStartDate}
-          placeholder=""
-          placeholderTextColor="#99A1AF"
-          style={styles.input}
+          minimumDate={new Date()}
+          onChange={(selectedDate) => {
+            setStartDate(selectedDate);
+            setErrorMessage('');
+          }}
+          fieldStyle={styles.dateField}
         />
 
         <View style={styles.activeRow}>
@@ -263,6 +315,49 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
+  goalOptions: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: colors.surface,
+    marginTop: -12,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  goalOption: {
+    minHeight: 64,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  goalOptionSelected: {
+    backgroundColor: '#ECFDF3',
+  },
+  goalOptionTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: '#101828',
+  },
+  goalOptionTitleSelected: {
+    color: colors.primary,
+  },
+  goalOptionMeta: {
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#6A7282',
+  },
+  goalOptionMetaSelected: {
+    color: '#047857',
+  },
+  emptyGoalText: {
+    padding: 16,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textMuted,
+  },
   selectText: {
     flex: 1,
     fontSize: 16,
@@ -287,6 +382,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#6A7282',
     marginBottom: 20,
+  },
+  dateField: {
+    marginBottom: 24,
   },
   segmented: {
     height: 56,

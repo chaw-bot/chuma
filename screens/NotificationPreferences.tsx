@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Platform,
   Pressable,
@@ -13,6 +13,7 @@ import { ArrowLeft, Bell, CalendarDays, Target, Wallet } from 'lucide-react-nati
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { colors } from '../theme/colors';
 
@@ -55,12 +56,7 @@ export default function NotificationPreferences() {
     insets.top,
     Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
   );
-  const [settings, setSettings] = useState<Record<(typeof rows)[number]['key'], boolean>>({
-    deductions: true,
-    milestones: true,
-    expenses: false,
-    tips: true,
-  });
+  const { notificationPreferences, updateNotificationPreferences } = useAppData();
 
   return (
     <View style={styles.screen}>
@@ -94,9 +90,9 @@ export default function NotificationPreferences() {
                   <Text style={styles.rowDescription}>{item.description}</Text>
                 </View>
                 <Switch
-                  value={settings[item.key]}
+                  value={notificationPreferences[item.key]}
                   onValueChange={(value) =>
-                    setSettings((current) => ({ ...current, [item.key]: value }))
+                    updateNotificationPreferences({ [item.key]: value })
                   }
                   trackColor={{ true: colors.primary, false: '#D1D5DC' }}
                   thumbColor={colors.surface}
