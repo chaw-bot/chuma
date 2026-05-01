@@ -4,6 +4,8 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "admin": "node scripts/serve-admin.mjs",
+    "make-admin": "node scripts/make-admin.mjs",
     "android": "expo run:android",
     "android:metro": "expo start --android",
     "android:dev": "expo run:android",
@@ -23,6 +25,7 @@
     "expo-router": "^6.0.23",
     "expo-status-bar": "~3.0.9",
     "firebase": "^12.12.1",
+    "firebase-admin": "^13.8.0",
     "lucide-react-native": "^0.564.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",

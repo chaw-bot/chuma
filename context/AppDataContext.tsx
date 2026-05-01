@@ -118,6 +118,46 @@ const withoutUndefined = <T extends Record<string, unknown>>(value: T) =>
     Object.entries(value).filter(([, fieldValue]) => fieldValue !== undefined)
   ) as T;
 
+const toFiniteNumber = (value: unknown, fallback = 0) => {
+  const numberValue = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+};
+
+const normalizeGoal = (data: Record<string, unknown>, id: string): SavingsGoal => ({
+  ...(data as SavingsGoal),
+  id,
+  name: typeof data.name === 'string' ? data.name : 'Savings Goal',
+  category: ['education', 'emergency', 'business', 'housing'].includes(String(data.category))
+    ? (data.category as GoalCategory)
+    : 'business',
+  targetAmount: toFiniteNumber(data.targetAmount),
+  currentAmount: toFiniteNumber(data.currentAmount),
+  timelineMonths: toFiniteNumber(data.timelineMonths),
+  color: typeof data.color === 'string' ? data.color : goalColors.business,
+  autoSaveAmount:
+    data.autoSaveAmount === undefined ? undefined : toFiniteNumber(data.autoSaveAmount),
+});
+
+const normalizeExpense = (data: Record<string, unknown>, id: string): ExpenseItem => ({
+  ...(data as ExpenseItem),
+  id,
+  category: ['Food', 'Transport', 'Shopping', 'Other'].includes(String(data.category))
+    ? (data.category as ExpenseCategory)
+    : 'Other',
+  amount: toFiniteNumber(data.amount),
+  createdAt: typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString(),
+});
+
+const normalizeInvestment = (data: Record<string, unknown>, id: string): InvestmentOption => ({
+  ...(data as InvestmentOption),
+  id,
+  name: typeof data.name === 'string' ? data.name : 'Investment Option',
+  risk: typeof data.risk === 'string' ? data.risk : 'Unknown',
+  returns: typeof data.returns === 'string' ? data.returns : 'N/A',
+  minAmount: toFiniteNumber(data.minAmount),
+  description: typeof data.description === 'string' ? data.description : '',
+});
+
 const newestFirst = <T extends { createdAt?: string }>(items: T[]) =>
   [...items].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
 
@@ -342,7 +382,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const goalsRef = collection(db, 'users', userId, 'goals');
 
     const unsub = onSnapshot(goalsRef, (snapshot) => {
-      const items = snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as SavingsGoal));
+      const items = snapshot.docs.map((d) => normalizeGoal(d.data(), d.id));
 
       items.forEach((goal) => {
         if (goal.createdAt) return;
@@ -389,7 +429,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     const unsub = onSnapshot(investmentsRef, (snapshot) => {
       setInvestments(
-        snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as InvestmentOption))
+        snapshot.docs.map((d) => normalizeInvestment(d.data(), d.id))
       );
     });
 
@@ -402,7 +442,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     const unsub = onSnapshot(expensesRef, (snapshot) => {
       const items = snapshot.docs
-        .map((d) => ({ ...d.data(), id: d.id } as ExpenseItem))
+        .map((d) => normalizeExpense(d.data(), d.id))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       setExpenses(items);
     });
