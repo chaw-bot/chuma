@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
+import { getAuth, onAuthStateChanged, signOut as signOutFromAuth } from '@react-native-firebase/auth';
 import {
   getFirestore,
   collection,
@@ -9,7 +9,6 @@ import {
   setDoc,
   writeBatch,
 } from '@react-native-firebase/firestore';
-import firebaseAuth from '../firebase';
 
 export type GoalCategory = 'education' | 'emergency' | 'business' | 'housing';
 export type AutoSaveFrequency = 'daily' | 'weekly' | 'monthly';
@@ -250,8 +249,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         });
       },
       signOut: () => {
-        firebaseAuth.signOut().catch(console.error);
         setCurrentUser(null);
+        setUserId('');
+        signOutFromAuth(auth).catch(console.error);
       },
     }),
     [currentUser, expenses, goals, isAuthReady, userId]
