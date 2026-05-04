@@ -23,7 +23,7 @@ The repo currently includes both `package-lock.json` and `yarn.lock`. Prefer npm
 
 ## Firebase Setup
 
-The app is configured for Firebase project `chuma-26`.
+Configure the app with your Firebase project settings before running it locally.
 
 Required local Firebase files:
 
@@ -31,14 +31,14 @@ Required local Firebase files:
 - Firebase Web config in `firebaseApp.ts` and `admin/src/app.js`
 - Optional service account JSON for admin claim scripts
 
-Never commit Firebase Admin SDK private keys. Keep service account files local. The `.gitignore` already excludes common service account file names, including `service-account.json` and `*-firebase-adminsdk-*.json`.
+Never commit Firebase Admin SDK private keys. Keep service account files local and make sure private key files are ignored by git.
 
 If you need a service account:
 
 1. Open Firebase Console.
 2. Go to Project settings > Service accounts.
 3. Generate a new private key.
-4. Save it outside version control or as `service-account.json`.
+4. Save it outside version control.
 
 ## Run the Mobile App
 
@@ -181,7 +181,7 @@ For a physical phone, enable Developer options, turn on USB debugging, and accep
 
 ### Firebase Auth phone sign-in fails
 
-Check that the Firebase project has phone authentication enabled, the app package name matches `com.chaw.chuma`, and the correct `google-services.json` is present.
+Check that the Firebase project has phone authentication enabled, the app package name matches the package configured in `app.json`, and the correct `google-services.json` is present.
 
 ### Admin dashboard says the user is not an admin
 
