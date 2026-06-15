@@ -167,7 +167,7 @@ export default function CreateGoal() {
           })}
         </View>
 
-        <FieldLabel text="Initial Deposit Amount (ZMW)" />
+        {/* <FieldLabel text="Initial Deposit Amount (ZMW)" />
         <TextInput
           value={initialDeposit}
           onChangeText={(value) => setInitialDeposit(sanitizeAmountInput(value))}
@@ -176,7 +176,7 @@ export default function CreateGoal() {
           placeholderTextColor="rgba(10,10,10,0.5)"
           style={styles.input}
         />
-        <Text style={styles.helperText}>Optional: Make your first contribution now</Text>
+        <Text style={styles.helperText}>Optional: Make your first contribution now</Text> */}
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
       </ScrollView>
