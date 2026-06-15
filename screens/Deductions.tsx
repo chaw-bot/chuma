@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SavingsGoal, useAppData } from '../context/AppDataContext';
+import { patchGoalAutoSave } from '../api/goalsApi';
 import { RootStackParamList } from '../types/navigation';
 import { colors } from '../theme/colors';
 
@@ -36,7 +37,7 @@ export default function Deductions() {
   const insets = useSafeAreaInsets();
   const fallbackTop = Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0;
   const topPadding = Math.max(insets.top, fallbackTop) + 24;
-  const { goals, updateGoal } = useAppData();
+  const { goals, updateGoal, uid } = useAppData();
 
   const deductions = useMemo(
     () =>
@@ -56,7 +57,11 @@ export default function Deductions() {
   );
 
   const toggleDeduction = (goal: SavingsGoal) => {
-    updateGoal(goal.id, { autoSaveActive: goal.autoSaveActive === false });
+    const newActive = goal.autoSaveActive === false;
+    updateGoal(goal.id, { autoSaveActive: newActive });
+    if (uid) {
+      patchGoalAutoSave(uid, goal.id, { autoSaveActive: newActive }).catch(console.error);
+    }
   };
 
   return (

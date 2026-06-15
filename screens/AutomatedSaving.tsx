@@ -17,6 +17,7 @@ import {
   AutoSaveFrequency,
   useAppData,
 } from '../context/AppDataContext';
+import { patchGoalAutoSave } from '../api/goalsApi';
 import { RootStackParamList } from '../types/navigation';
 import { parseAmount, sanitizeAmountInput } from '../utils/auth';
 import { colors } from '../theme/colors';
@@ -53,7 +54,7 @@ export default function AutomatedSavings() {
   const insets = useSafeAreaInsets();
   const fallbackTop = Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0;
   const topPadding = Math.max(insets.top, fallbackTop) + 12;
-  const { goals, updateGoal } = useAppData();
+  const { goals, updateGoal, uid, currentUser } = useAppData();
   const params = route.params ?? {};
 
   const initialGoal = useMemo(() => {
@@ -95,13 +96,27 @@ export default function AutomatedSavings() {
       return;
     }
 
+    const startDateFormatted = formatPickerDate(startDate);
+
     updateGoal(selectedGoal.id, {
       autoSaveAmount: parsedAmount,
       autoSaveFrequency: frequency,
-      autoSaveStartDate: formatPickerDate(startDate),
+      autoSaveStartDate: startDateFormatted,
       autoSaveActive: active,
       autoSaveCreatedAt: new Date().toISOString(),
     });
+
+    if (uid && currentUser?.phoneNumber) {
+      const phoneDigits = currentUser.phoneNumber.replace(/\D/g, '');
+      patchGoalAutoSave(uid, selectedGoal.id, {
+        autoSaveAmount: parsedAmount,
+        autoSaveFrequency: frequency,
+        autoSaveStartDate: startDateFormatted,
+        autoSaveActive: active,
+        phone: phoneDigits,
+        operator: currentUser.provider ?? 'mtn',
+      }).catch(console.error);
+    }
 
     navigation.navigate('Deductions');
   };

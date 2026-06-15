@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+import { Operator } from './api/goalsApi';
+import { useAutoDeductions } from './hooks/useAutoDeductions';
+import { useAppData } from './context/AppDataContext';
+import { toLocalZmPhone } from './utils/auth';
 import { StyleSheet } from 'react-native';
 import {
   NavigationContainer,
@@ -35,6 +39,18 @@ import PrivacyPolicy from './screens/PrivacyPolicy';
 import { colors } from './theme/colors';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function AutoDeductionRunner() {
+  const { uid, currentUser, goals } = useAppData();
+  const phone = toLocalZmPhone(currentUser?.phoneNumber);
+  const operator: Operator =
+    currentUser?.provider === 'airtel' || currentUser?.provider === 'zamtel'
+      ? currentUser.provider
+      : 'mtn';
+  useAutoDeductions(uid, goals, phone, operator);
+  return null;
+}
+
 const routesWithoutNav: Array<keyof RootStackParamList> = [
   'Splash',
   'Onboarding',
@@ -72,6 +88,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppDataProvider>
+        <AutoDeductionRunner />
         <NavigationContainer
           ref={navigationRef}
           theme={navigationTheme}

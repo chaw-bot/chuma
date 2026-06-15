@@ -186,3 +186,19 @@ export const confirmWithdraw = (uid: string, goalId: string, reference: string) 
       body: JSON.stringify({ reference }),
     }
   );
+
+export interface AutoSavePatch {
+  autoSaveAmount?: number;
+  autoSaveFrequency?: 'daily' | 'weekly' | 'monthly';
+  autoSaveStartDate?: string;
+  autoSaveActive?: boolean;
+  phone?: string;
+  operator?: Operator;
+  country?: Country;
+}
+
+export const patchGoalAutoSave = (uid: string, goalId: string, body: AutoSavePatch) =>
+  request<ApiGoal>(`/sandbox/users/${uid}/goals/${goalId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
