@@ -45,6 +45,20 @@ export function normalizeZmPhone(rawPhone: string): string | null {
   return normalized;
 }
 
+export function toLocalZmPhone(rawPhone?: string | null): string {
+  if (!rawPhone) {
+    return '';
+  }
+
+  const normalized = normalizeZmPhone(rawPhone);
+  if (normalized) {
+    // 2609XXXXXXXX -> 09XXXXXXXX (local format the wallet APIs expect)
+    return `0${normalized.slice(3)}`;
+  }
+
+  return rawPhone.replace(/\D/g, '');
+}
+
 export function phoneToFirebaseEmail(rawPhone: string): string | null {
   const normalized = normalizeZmPhone(rawPhone);
   if (!normalized) {

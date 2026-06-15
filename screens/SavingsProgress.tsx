@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Platform,
   StatusBar as NativeStatusBar,
@@ -8,13 +8,20 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import { Plus, Target } from 'lucide-react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { ArrowUpRight, Plus, Target, Wallet } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SavingsGoal, useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { colors, shadows } from '../theme/colors';
+import ChargeGoalSheet, { ChargeGoalTarget } from '../components/ChargeGoalSheet';
+import WithdrawGoalSheet, {
+  WithdrawGoalTarget,
+} from '../components/WithdrawGoalSheet';
+import { listDueGoals, Operator } from '../api/goalsApi';
+import { toLocalZmPhone } from '../utils/auth';
 
 type SavingsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -26,10 +33,18 @@ type GoalListItem = {
   name: string;
   currentAmount: number;
   targetAmount: number;
+  autoSaveAmount?: number;
   status: 'Active' | 'Completed' | 'Paused';
   accent: string;
   category?: SavingsGoal['category'];
+  due: boolean;
 };
+
+const sessionOperator = (
+  provider?: SessionProvider
+): Operator => (provider === 'airtel' || provider === 'zamtel' ? provider : 'mtn');
+
+type SessionProvider = 'mtn' | 'airtel' | 'zamtel';
 
 export default function SavingsProgress() {
   const navigation = useNavigation<SavingsNavigationProp>();
@@ -38,17 +53,62 @@ export default function SavingsProgress() {
     insets.top,
     Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
   );
-  const { goals } = useAppData();
+  const { goals, currentUser, uid } = useAppData();
+
+  const [dueIds, setDueIds] = useState<Set<string>>(new Set());
+  const [chargeTarget, setChargeTarget] = useState<ChargeGoalTarget | null>(null);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [withdrawTarget, setWithdrawTarget] =
+    useState<WithdrawGoalTarget | null>(null);
+  const [withdrawVisible, setWithdrawVisible] = useState(false);
+
+  const defaultPhone = toLocalZmPhone(currentUser?.phoneNumber);
+  const defaultOperator = sessionOperator(currentUser?.provider);
+
+  // Pull the API's "due" flag so we can surface goals that need a charge now.
+  // Falls back silently to no badges if the savings server is unreachable.
+  const refreshDue = useCallback(() => {
+    if (!uid) return;
+    listDueGoals(uid)
+      .then((due) => setDueIds(new Set(due.map((goal) => goal.id))))
+      .catch(() => setDueIds(new Set()));
+  }, [uid]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshDue();
+    }, [refreshDue])
+  );
+
+  const openCharge = (goal: GoalListItem) => {
+    setChargeTarget({
+      goalId: goal.id,
+      goalName: goal.name,
+      defaultAmount: goal.autoSaveAmount,
+    });
+    setSheetVisible(true);
+  };
+
+  const openWithdraw = (goal: GoalListItem) => {
+    setWithdrawTarget({
+      goalId: goal.id,
+      goalName: goal.name,
+      availableAmount: goal.currentAmount,
+    });
+    setWithdrawVisible(true);
+  };
 
   const appGoals: GoalListItem[] = goals.map((goal) => ({
-      id: goal.id,
-      name: goal.name,
-      currentAmount: goal.currentAmount,
-      targetAmount: goal.targetAmount,
-      status: goal.currentAmount >= goal.targetAmount ? 'Completed' : 'Active',
-      accent: colors.primary,
-      category: goal.category,
-    }));
+    id: goal.id,
+    name: goal.name,
+    currentAmount: goal.currentAmount,
+    targetAmount: goal.targetAmount,
+    autoSaveAmount: goal.autoSaveAmount,
+    status: goal.currentAmount >= goal.targetAmount ? 'Completed' : 'Active',
+    accent: colors.primary,
+    category: goal.category,
+    due: dueIds.has(goal.id),
+  }));
 
   return (
     <View style={styles.container}>
@@ -81,6 +141,8 @@ export default function SavingsProgress() {
                     });
                   }
                 }}
+                onSave={() => openCharge(goal)}
+                onWithdraw={() => openWithdraw(goal)}
               />
             ))
           ) : (
@@ -98,6 +160,30 @@ export default function SavingsProgress() {
       >
         <Plus size={28} color={colors.surface} strokeWidth={2.2} />
       </Pressable>
+
+      <ChargeGoalSheet
+        visible={sheetVisible}
+        uid={uid}
+        target={chargeTarget}
+        defaultPhone={defaultPhone}
+        defaultOperator={defaultOperator}
+        onClose={() => {
+          setSheetVisible(false);
+          refreshDue();
+        }}
+      />
+
+      <WithdrawGoalSheet
+        visible={withdrawVisible}
+        uid={uid}
+        target={withdrawTarget}
+        defaultPhone={defaultPhone}
+        defaultOperator={defaultOperator}
+        onClose={() => {
+          setWithdrawVisible(false);
+          refreshDue();
+        }}
+      />
     </View>
   );
 }
@@ -105,14 +191,19 @@ export default function SavingsProgress() {
 function GoalCard({
   goal,
   onPress,
+  onSave,
+  onWithdraw,
 }: {
   goal: GoalListItem;
   onPress: () => void;
+  onSave: () => void;
+  onWithdraw: () => void;
 }) {
   const progress = goal.targetAmount > 0
     ? Math.min(goal.currentAmount / goal.targetAmount, 1)
     : 0;
   const progressPercent = Math.round(progress * 100);
+  const completed = goal.status === 'Completed';
 
   return (
     <Pressable style={styles.goalCard} onPress={onPress}>
@@ -132,8 +223,15 @@ function GoalCard({
           </View>
         </View>
 
-        <View style={[styles.statusPill, { backgroundColor: goal.accent }]}>
-          <Text style={styles.statusText}>{goal.status}</Text>
+        <View style={styles.pillStack}>
+          <View style={[styles.statusPill, { backgroundColor: goal.accent }]}>
+            <Text style={styles.statusText}>{goal.status}</Text>
+          </View>
+          {goal.due && !completed ? (
+            <View style={styles.duePill}>
+              <Text style={styles.dueText}>Due now</Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -150,6 +248,21 @@ function GoalCard({
       </View>
 
       <Text style={styles.progressText}>{progressPercent}% complete</Text>
+
+      {completed ? (
+        <Pressable
+          onPress={onWithdraw}
+          style={[styles.actionButton, styles.withdrawButton]}
+        >
+          <ArrowUpRight size={18} color={colors.surface} strokeWidth={2.2} />
+          <Text style={styles.withdrawButtonText}>Withdraw</Text>
+        </Pressable>
+      ) : (
+        <Pressable onPress={onSave} style={[styles.actionButton, styles.saveButton]}>
+          <Wallet size={18} color={colors.primary} strokeWidth={2.2} />
+          <Text style={styles.saveButtonText}>Save now</Text>
+        </Pressable>
+      )}
     </Pressable>
   );
 }
@@ -254,6 +367,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: '#4A5565',
+  },
+  pillStack: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  duePill: {
+    height: 22,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    backgroundColor: '#FEF3C7',
+  },
+  dueText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+    color: '#8A6A16',
+  },
+  actionButton: {
+    height: 44,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  saveButton: {
+    backgroundColor: '#ECFDF3',
+  },
+  saveButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  withdrawButton: {
+    backgroundColor: colors.primary,
+  },
+  withdrawButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.surface,
   },
   fab: {
     position: 'absolute',

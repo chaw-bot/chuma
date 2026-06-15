@@ -88,6 +88,7 @@ type AppDataContextValue = {
   investments: InvestmentOption[];
   notificationPreferences: NotificationPreferences;
   currentUser: SessionUser | null;
+  uid: string;
   isAuthReady: boolean;
   addGoal: (goal: AddGoalInput) => void;
   updateGoal: (goalId: string, updates: Partial<SavingsGoal>) => void;
@@ -472,6 +473,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       investments,
       notificationPreferences,
       currentUser,
+      uid: userId,
       isAuthReady,
       addGoal: (goal) => {
         if (!userId) return;

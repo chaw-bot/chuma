@@ -9,7 +9,21 @@
     "newArchEnabled": true,
     "plugins": [
       "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@react-native-firebase/auth",
+      "expo-dev-client",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAuth",
+              "RNFBFirestore"
+            ]
+          }
+        }
+      ]
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -17,7 +31,9 @@
       "backgroundColor": "#F6F7F3"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.chaw.chuma",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "com.chaw.chuma",
