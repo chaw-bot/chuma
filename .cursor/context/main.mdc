@@ -1,0 +1,368 @@
+---
+alwaysApply: true
+---
+
+
+# Lenco API Integration - Cursor Context
+
+## Project Overview
+Integration with Lenco API for payment processing in Zambia supporting Mobile Money and Bank transfers.
+
+## API Base URLs
+- **Production**: `https://api.lenco.co/access/v2`
+- **Sandbox**: `https://api.sandbox.lenco.co/access/v2`
+- **Payment Widget (Prod)**: `https://pay.lenco.co/js/v1/inline.js`
+- **Payment Widget (Sandbox)**: `https://pay.sandbox.lenco.co/js/v1/inline.js`
+
+## Authentication
+All API requests require Bearer token authentication:
+```
+Authorization: Bearer YOUR_API_TOKEN
+```
+
+**Security Notes:**
+- Never store API tokens in source control
+- API token should be stored as environment variable
+- All requests must use HTTPS
+- Contact support@lenco.co to get API token or rotate compromised tokens
+
+## Response Format
+All API responses follow this structure:
+```typescript
+{
+  status: boolean;      // true if successful, false otherwise
+  message: string;      // Informational message (log only, don't use for checks)
+  data: object | array; // Actual response data
+  meta?: {              // Pagination info (when applicable)
+    total: number;
+    perPage: number;
+    currentPage: number;
+    pageCount: number;
+  }
+}
+```
+
+## HTTP Status Codes
+- **200/201**: Success
+- **400**: Validation/client error
+- **401**: Unauthorized (invalid/missing API token)
+- **404**: Resource not found
+- **500-504**: Server error (report immediately)
+
+## Error Codes
+| Code | Description |
+|------|-------------|
+| 01 | Validation error |
+| 02 | Insufficient funds |
+| 03 | Transfer limit exceeded |
+| 04 | Invalid/duplicate reference |
+| 05 | Invalid recipient account |
+| 06 | Restriction on debit account |
+| 07 | Invalid/duplicate bulk transfer reference |
+| 08 | Invalid number of objects in bulk transfer |
+| 09 | Invalid auth token or authorization denied |
+| 10 | General error |
+| 11 | Resource not found |
+| 12 | Invalid mobile number |
+| 13 | Access to resource denied |
+
+## Key Endpoints
+
+### Accounts
+- `GET /accounts` - List all accounts
+- `GET /accounts/:id` - Get specific account
+- `GET /accounts/:id/balance` - Get account balance
+
+### Banks & Resolution
+- `GET /banks?country=zm` - List banks
+- `POST /resolve/bank-account` - Verify bank account
+- `POST /resolve/mobile-money` - Verify mobile money account
+- `POST /resolve/lenco-money` - Verify Lenco Money wallet
+- `POST /resolve/lenco-merchant` - Verify Lenco Merchant till
+
+### Transfer Recipients
+- `GET /transfer-recipients` - List recipients
+- `GET /transfer-recipients/:id` - Get specific recipient
+- `POST /transfer-recipients/bank-account` - Create bank account recipient
+- `POST /transfer-recipients/mobile-money` - Create mobile money recipient
+- `POST /transfer-recipients/lenco-money` - Create Lenco Money recipient
+- `POST /transfer-recipients/lenco-merchant` - Create Lenco Merchant recipient
+
+### Transfers (Sending Money)
+- `GET /transfers` - List transfers
+- `GET /transfers/:id` - Get transfer by ID
+- `GET /transfers/status/:reference` - Get transfer by reference
+- `POST /transfers/bank-account` - Transfer to bank
+- `POST /transfers/mobile-money` - Transfer to mobile money
+- `POST /transfers/lenco-money` - Transfer to Lenco Money
+- `POST /transfers/lenco-merchant` - Transfer to Lenco Merchant
+- `POST /transfers/account` - Transfer between own accounts
+
+### Collections (Receiving Money)
+- `GET /collections` - List collections
+- `GET /collections/:id` - Get collection by ID
+- `GET /collections/status/:reference` - Get collection by reference
+- `POST /collections/mobile-money` - Request mobile money payment
+- `POST /collections/card` - Request card payment (requires PCI DSS & encryption)
+
+### Settlements & Transactions
+- `GET /settlements` - List settlements
+- `GET /settlements/:id` - Get specific settlement
+- `GET /transactions` - List transactions
+- `GET /transactions/:id` - Get specific transaction
+
+### Encryption
+- `GET /encryption-key` - Get RSA public key for payload encryption
+
+## Payment Collection Widget (Frontend)
+```javascript
+<script src="https://pay.lenco.co/js/v1/inline.js"></script>
+
+LencoPay.getPaid({
+  key: 'YOUR_PUBLIC_KEY',
+  reference: 'unique-ref-' + Date.now(),
+  email: 'customer@email.com',
+  amount: 1000,
+  currency: "ZMW",
+  channels: ["card", "mobile-money"],
+  customer: {
+    firstName: "John",
+    lastName: "Doe",
+    phone: "0971111111"
+  },
+  onSuccess: function(response) {
+    // Verify payment on backend
+    // response.reference contains the reference
+  },
+  onClose: function() {
+    // User closed widget
+  },
+  onConfirmationPending: function() {
+    // Payment pending confirmation
+  }
+});
+```
+
+**Important Widget Notes:**
+- Use public key (not secret API token)
+- Always verify payment on backend after onSuccess
+- Generate unique reference for each transaction
+- Amount is NOT in lowest currency unit (use 10.75 not 1075)
+
+## Supported Payment Methods
+
+### Mobile Money Operators (Zambia)
+- **airtel** - Airtel Money
+- **mtn** - MTN Mobile Money
+- **zamtel** - Zamtel Kwacha
+
+### Mobile Money Operators (Malawi)
+- **airtel** - Airtel Money
+- **tnm** - TNM Mpamba
+
+## Common Data Structures
+
+### Transfer/Collection Status
+- `pending` - Transaction initiated but not complete
+- `successful` - Transaction completed successfully
+- `failed` - Transaction failed
+- `pay-offline` - Customer needs to complete on their device (mobile money)
+- `3ds-auth-required` - 3D Secure authentication needed (cards)
+
+### Account Types
+- `bank-account` - Bank account
+- `mobile-money` - Mobile money account
+- `lenco-money` - Lenco Money wallet
+- `lenco-merchant` - Lenco Merchant till
+
+### Currency
+Primary: **ZMW** (Zambian Kwacha)
+
+## Best Practices
+
+### References
+- Generate unique references for each transaction
+- Use format: `prefix-timestamp` or `prefix-uuid`
+- Only alphanumeric, `-`, `.`, `_` allowed
+- Store references in your database
+
+### Error Handling
+- Check HTTP status code first
+- Then check `response.status` boolean
+- Use `errorCode` for specific error handling
+- Log `message` for debugging
+
+### Verification Flow
+1. User completes payment (widget or API)
+2. Your frontend receives success callback
+3. Frontend calls YOUR backend endpoint
+4. Backend verifies with Lenco API using reference
+5. Backend updates database and responds to frontend
+
+### Webhooks
+Setup webhook URL with support@lenco.co to receive:
+- `transfer.successful`
+- `transfer.failed`
+- `collection.successful`
+- `collection.failed`
+- `collection.settled`
+- `transaction.credit`
+- `transaction.debit`
+
+**Webhook Verification:**
+```javascript
+const crypto = require('crypto');
+const webhookHashKey = crypto.createHash("sha256")
+  .update(API_TOKEN)
+  .digest("hex");
+
+const signature = crypto.createHmac('sha512', webhookHashKey)
+  .update(JSON.stringify(req.body))
+  .digest('hex');
+
+if (signature === req.headers['x-lenco-signature']) {
+  // Valid webhook
+}
+```
+
+**Webhook Response:**
+- Respond with 200/201/202 to acknowledge
+- Other status codes = unacknowledged (retry every 30 min for 24 hrs)
+- Don't perform long-running tasks before responding
+
+### Re-query Pattern
+Don't rely solely on webhooks. Implement polling:
+- Query `/transfers/status/:reference` every 30 minutes
+- Continue until status is `successful` or `failed`
+- Handles cases where webhooks fail due to downtime
+
+## Test Data
+
+### Mobile Money Test Accounts (Sandbox)
+| Phone | Operator | Result | Error |
+|-------|----------|--------|-------|
+| 0961111111 | mtn | Successful | - |
+| 0962222222 | mtn | Failed | Not enough funds |
+| 0971111111 | airtel (zm) | Successful | - |
+| 0972222222 | airtel (zm) | Failed | Incorrect Pin |
+| 0881111111 | tnm | Successful | - |
+| 0991111111 | airtel (mw) | Successful | - |
+
+### Test Cards (Sandbox)
+| Type | Number | CVV | Expiry |
+|------|--------|-----|--------|
+| Visa | 4622 9431 2701 3705 | 838 | Any future date |
+| Visa | 4622 9431 2701 3747 | 370 | Any future date |
+| Mastercard | 5555 5555 5555 4444 | Any 3 digits | Any future date |
+
+## TypeScript Types
+
+```typescript
+interface LencoAccount {
+  id: string;
+  details: {
+    type: string;
+    accountName: string;
+    tillNumber?: string;
+  };
+  type: string;
+  status: string;
+  createdAt: string;
+  currency: string;
+  availableBalance: string | null;
+  ledgerBalance: string | null;
+}
+
+interface LencoTransfer {
+  id: string;
+  amount: string;
+  fee: string;
+  currency: string;
+  narration: string;
+  initiatedAt: string;
+  completedAt: string | null;
+  accountId: string;
+  creditAccount: {
+    type: 'bank-account' | 'mobile-money' | 'lenco-money' | 'lenco-merchant';
+    accountName: string;
+    // Type-specific fields
+  };
+  status: 'pending' | 'successful' | 'failed';
+  reasonForFailure: string | null;
+  reference: string | null;
+  lencoReference: string;
+  source: 'banking-app' | 'api';
+}
+
+interface LencoCollection {
+  id: string;
+  initiatedAt: string;
+  completedAt: string | null;
+  amount: string;
+  fee: string | null;
+  bearer: 'merchant' | 'customer';
+  currency: string;
+  reference: string | null;
+  lencoReference: string;
+  type: 'card' | 'mobile-money' | 'bank-account' | null;
+  status: 'pending' | 'successful' | 'failed' | 'pay-offline' | '3ds-auth-required';
+  source: 'banking-app' | 'api';
+  reasonForFailure: string | null;
+  settlementStatus: 'pending' | 'settled' | null;
+  settlement: Settlement | null;
+  mobileMoneyDetails: MobileMoneyDetails | null;
+  cardDetails: CardDetails | null;
+}
+
+interface TransferRequest {
+  accountId: string;
+  amount: number;
+  narration?: string;
+  reference: string;
+  // Plus type-specific fields
+}
+
+interface CollectionRequest {
+  amount: number;
+  reference: string;
+  phone: string;
+  operator: 'airtel' | 'mtn' | 'zamtel' | 'tnm';
+  country?: 'zm' | 'mw';
+  bearer?: 'merchant' | 'customer';
+}
+```
+
+## Environment Variables
+```bash
+# Required
+LENCO_API_TOKEN=your_secret_api_token
+LENCO_PUBLIC_KEY=your_public_key
+LENCO_WEBHOOK_URL=https://your-domain.com/webhooks/lenco
+
+# Optional
+LENCO_ENVIRONMENT=sandbox # or production
+LENCO_BASE_URL=https://api.lenco.co/access/v2
+```
+
+## Common Pitfalls to Avoid
+1. ❌ Don't use localStorage/sessionStorage in frontend for API tokens
+2. ❌ Don't call Lenco API directly from frontend (use backend proxy)
+3. ❌ Don't reuse references across transactions
+4. ❌ Don't convert amounts to lowest currency unit (kobo/cents)
+5. ❌ Don't rely solely on webhooks (implement re-query)
+6. ❌ Don't store API tokens in version control
+7. ❌ Don't forget to verify webhook signatures
+8. ❌ Don't perform long tasks before responding to webhooks
+
+## Card Collections Special Notes
+- Requires PCI DSS compliance
+- Payload must be encrypted using JWE
+- Use RSA-OAEP-256 with A256GCM encryption
+- Get encryption key from `/encryption-key` endpoint
+- Don't cache/reuse encryption keys
+- Handle 3DS authentication redirects
+- Never log card details
+
+## Support
+- Email: support@lenco.co
+- Documentation: https://docs.lenco.co

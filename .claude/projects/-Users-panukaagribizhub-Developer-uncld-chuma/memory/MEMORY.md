@@ -1,0 +1,2 @@
+- [Savings Goals API integration](savings-goals-api-integration.md) — how the app charges goals via the backend; balances sync through shared Firestore
+- [Withdraw endpoint assumed](withdraw-endpoint-assumed.md) — withdrawal API shape is a guess; needs confirming against backend
