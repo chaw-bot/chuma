@@ -4,6 +4,10 @@ import { Platform } from 'react-native';
 // Override the base URL with EXPO_PUBLIC_GOALS_API_URL when running against a
 // real host. On the Android emulator the host machine is reachable at 10.0.2.2,
 // while the iOS simulator can use localhost directly.
+// const DEFAULT_BASE_URL =
+//   Platform.OS === 'android'
+//     ? 'https://chuma.usepaynow.com'
+//     : 'https://chuma.usepaynow.com';
 const DEFAULT_BASE_URL =
   Platform.OS === 'android'
     ? 'http://192.168.1.189:4033/api'
