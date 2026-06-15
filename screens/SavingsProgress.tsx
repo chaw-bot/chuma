@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   Platform,
   StatusBar as NativeStatusBar,
   View,
@@ -18,12 +17,10 @@ import { SavingsGoal, useAppData } from '../context/AppDataContext';
 import { RootStackParamList } from '../types/navigation';
 import { colors, shadows } from '../theme/colors';
 import ChargeGoalSheet, { ChargeGoalTarget } from '../components/ChargeGoalSheet';
-import {
-  GoalsApiError,
-  listDueGoals,
-  Operator,
-  withdrawGoal,
-} from '../api/goalsApi';
+import WithdrawGoalSheet, {
+  WithdrawGoalTarget,
+} from '../components/WithdrawGoalSheet';
+import { listDueGoals, Operator } from '../api/goalsApi';
 import { toLocalZmPhone } from '../utils/auth';
 
 type SavingsNavigationProp = NativeStackNavigationProp<
@@ -61,7 +58,9 @@ export default function SavingsProgress() {
   const [dueIds, setDueIds] = useState<Set<string>>(new Set());
   const [chargeTarget, setChargeTarget] = useState<ChargeGoalTarget | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
-  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const [withdrawTarget, setWithdrawTarget] =
+    useState<WithdrawGoalTarget | null>(null);
+  const [withdrawVisible, setWithdrawVisible] = useState(false);
 
   const defaultPhone = toLocalZmPhone(currentUser?.phoneNumber);
   const defaultOperator = sessionOperator(currentUser?.provider);
@@ -90,42 +89,13 @@ export default function SavingsProgress() {
     setSheetVisible(true);
   };
 
-  const handleWithdraw = (goal: GoalListItem) => {
-    if (!uid) return;
-    Alert.alert(
-      'Request withdrawal',
-      `Withdraw ZMW ${goal.currentAmount.toLocaleString()} from "${goal.name}" to your wallet (${defaultPhone || 'your number'})?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Withdraw',
-          style: 'default',
-          onPress: async () => {
-            setWithdrawingId(goal.id);
-            try {
-              await withdrawGoal(uid, goal.id, {
-                phone: defaultPhone.replace(/\D/g, ''),
-                operator: defaultOperator,
-                amount: goal.currentAmount,
-              });
-              Alert.alert(
-                'Withdrawal requested',
-                'Your withdrawal is being processed. You will receive the funds in your wallet shortly.'
-              );
-            } catch (error) {
-              Alert.alert(
-                'Withdrawal failed',
-                error instanceof GoalsApiError
-                  ? error.message
-                  : 'Could not request the withdrawal. Please try again.'
-              );
-            } finally {
-              setWithdrawingId(null);
-            }
-          },
-        },
-      ]
-    );
+  const openWithdraw = (goal: GoalListItem) => {
+    setWithdrawTarget({
+      goalId: goal.id,
+      goalName: goal.name,
+      availableAmount: goal.currentAmount,
+    });
+    setWithdrawVisible(true);
   };
 
   const appGoals: GoalListItem[] = goals.map((goal) => ({
@@ -161,7 +131,6 @@ export default function SavingsProgress() {
               <GoalCard
                 key={goal.id}
                 goal={goal}
-                withdrawing={withdrawingId === goal.id}
                 onPress={() => {
                   if (goal.category) {
                     navigation.navigate('AutomatedSavings', {
@@ -173,7 +142,7 @@ export default function SavingsProgress() {
                   }
                 }}
                 onSave={() => openCharge(goal)}
-                onWithdraw={() => handleWithdraw(goal)}
+                onWithdraw={() => openWithdraw(goal)}
               />
             ))
           ) : (
@@ -203,19 +172,29 @@ export default function SavingsProgress() {
           refreshDue();
         }}
       />
+
+      <WithdrawGoalSheet
+        visible={withdrawVisible}
+        uid={uid}
+        target={withdrawTarget}
+        defaultPhone={defaultPhone}
+        defaultOperator={defaultOperator}
+        onClose={() => {
+          setWithdrawVisible(false);
+          refreshDue();
+        }}
+      />
     </View>
   );
 }
 
 function GoalCard({
   goal,
-  withdrawing,
   onPress,
   onSave,
   onWithdraw,
 }: {
   goal: GoalListItem;
-  withdrawing: boolean;
   onPress: () => void;
   onSave: () => void;
   onWithdraw: () => void;
@@ -272,14 +251,11 @@ function GoalCard({
 
       {completed ? (
         <Pressable
-          disabled={withdrawing}
           onPress={onWithdraw}
-          style={[styles.actionButton, styles.withdrawButton, withdrawing && styles.actionDisabled]}
+          style={[styles.actionButton, styles.withdrawButton]}
         >
           <ArrowUpRight size={18} color={colors.surface} strokeWidth={2.2} />
-          <Text style={styles.withdrawButtonText}>
-            {withdrawing ? 'Requesting…' : 'Request withdrawal'}
-          </Text>
+          <Text style={styles.withdrawButtonText}>Withdraw</Text>
         </Pressable>
       ) : (
         <Pressable onPress={onSave} style={[styles.actionButton, styles.saveButton]}>
@@ -434,9 +410,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.surface,
-  },
-  actionDisabled: {
-    opacity: 0.6,
   },
   fab: {
     position: 'absolute',

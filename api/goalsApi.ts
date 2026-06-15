@@ -66,9 +66,6 @@ export interface ConfirmResponse {
   goal: ApiGoal;
 }
 
-// NOTE: the withdrawal endpoint is not in the published charge/confirm contract.
-// These shapes mirror the charge/confirm pattern and should be confirmed against
-// the backend — only the request() call below needs adjusting if they differ.
 export interface WithdrawRequest {
   phone: string;
   operator: Operator;
@@ -76,12 +73,22 @@ export interface WithdrawRequest {
   amount?: number;
 }
 
+// Withdraw mirrors the charge/confirm pattern: the initial call may settle
+// immediately (applied) or return "pending", in which case poll withdraw/confirm.
 export interface WithdrawResponse {
   reference: string;
-  amount: number;
-  goalId: string;
+  applied: boolean;
   status: CollectionStatus | 'pending' | 'successful' | 'failed';
-  message: string;
+  amount?: number;
+  message?: string;
+  goal?: ApiGoal;
+}
+
+export interface ConfirmWithdrawResponse {
+  applied: boolean;
+  status: CollectionStatus | 'pending' | 'successful' | 'failed';
+  reference: string;
+  amountApplied?: number;
   goal?: ApiGoal;
 }
 
@@ -157,7 +164,6 @@ export const confirmCharge = (uid: string, goalId: string, reference: string) =>
     body: JSON.stringify({ reference }),
   });
 
-// Assumed endpoint — see WithdrawRequest/WithdrawResponse note above.
 export const withdrawGoal = (
   uid: string,
   goalId: string,
@@ -167,3 +173,12 @@ export const withdrawGoal = (
     method: 'POST',
     body: JSON.stringify(body),
   });
+
+export const confirmWithdraw = (uid: string, goalId: string, reference: string) =>
+  request<ConfirmWithdrawResponse>(
+    `/sandbox/users/${uid}/goals/${goalId}/withdraw/confirm`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reference }),
+    }
+  );
